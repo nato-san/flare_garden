@@ -1,0 +1,11 @@
+{
+  "name": "Flare Garden Prototype",
+  "short_name": "Flare Garden",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#f8d7a8",
+  "theme_color": "#f8d7a8",
+  "icons": []
+}

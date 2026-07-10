@@ -4,13 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#f8d7a8" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Flare Garden" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Flare Garden Prototype Step1</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="game-shell" aria-label="Flare Garden">
       <div class="orientation-panel" id="orientationPanel">
-        <div>スマートフォンを横向きにして遊んでね</div>
+        <div class="orientation-card">
+          <h1>Flare Garden</h1>
+          <p>スマートフォンを横向きにして遊んでね</p>
+          <p class="home-note">画面が狭いときは、ブラウザの共有メニューから「ホーム画面に追加」して開くと遊びやすくなります。</p>
+        </div>
       </div>
 
       <div class="canvas-wrap" id="canvasWrap">

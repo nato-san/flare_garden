@@ -187,9 +187,38 @@ canvas {
   inset: 0;
   padding: 28px;
   background: linear-gradient(#bfeeff, #fbe6b3);
-  font-size: 24px;
-  font-weight: 800;
   display: none;
+}
+
+.orientation-card {
+  display: grid;
+  gap: 12px;
+  width: min(420px, calc(100vw - 48px));
+  padding: 24px;
+  border-radius: 8px;
+  background: rgba(255, 248, 223, 0.9);
+  box-shadow: 0 14px 34px rgba(103, 70, 42, 0.16);
+}
+
+.orientation-card h1,
+.orientation-card p {
+  margin: 0;
+}
+
+.orientation-card h1 {
+  font-size: 26px;
+}
+
+.orientation-card p {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.orientation-card .home-note {
+  color: #7e6048;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 @media (orientation: portrait) and (pointer: coarse) {
