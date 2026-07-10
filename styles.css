@@ -1,0 +1,205 @@
+:root {
+  color-scheme: light;
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background: #f8d7a8;
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+}
+
+button {
+  font: inherit;
+  border: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.game-shell {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(#bfeeff, #fbe6b3);
+}
+
+.canvas-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding:
+    calc(8px + var(--safe-top))
+    calc(8px + var(--safe-right))
+    calc(8px + var(--safe-bottom))
+    calc(8px + var(--safe-left));
+}
+
+canvas {
+  display: block;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 14px 40px rgba(110, 79, 53, 0.18);
+  background: #bfeeff;
+}
+
+.hud {
+  position: absolute;
+  left: calc(22px + var(--safe-left));
+  top: calc(14px + var(--safe-top));
+  z-index: 4;
+  pointer-events: none;
+}
+
+.score {
+  min-width: 112px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: #6a4b2f;
+  background: rgba(255, 248, 223, 0.88);
+  box-shadow: 0 5px 14px rgba(108, 76, 44, 0.16);
+  font-size: clamp(18px, 2.6vw, 28px);
+  font-weight: 800;
+  text-align: center;
+}
+
+.touch-controls {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding:
+    0
+    calc(24px + var(--safe-right))
+    calc(20px + var(--safe-bottom))
+    calc(24px + var(--safe-left));
+  pointer-events: none;
+}
+
+.move-controls {
+  display: flex;
+  gap: 14px;
+  pointer-events: auto;
+}
+
+.control-button {
+  width: clamp(62px, 9vw, 86px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #755037;
+  background: rgba(255, 245, 207, 0.9);
+  box-shadow: 0 8px 0 rgba(215, 162, 105, 0.9), 0 14px 24px rgba(117, 80, 55, 0.22);
+  font-size: clamp(34px, 5vw, 48px);
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.control-button:active,
+.control-button.is-held {
+  transform: translateY(5px);
+  box-shadow: 0 3px 0 rgba(215, 162, 105, 0.9), 0 8px 16px rgba(117, 80, 55, 0.18);
+}
+
+.water-button {
+  color: #426a75;
+  background: rgba(211, 247, 255, 0.92);
+  box-shadow: 0 8px 0 rgba(116, 194, 213, 0.9), 0 14px 24px rgba(66, 106, 117, 0.22);
+  font-size: clamp(22px, 3vw, 32px);
+}
+
+.goal-panel,
+.orientation-panel {
+  position: absolute;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #6a4b2f;
+}
+
+.goal-panel {
+  gap: 10px;
+  min-width: min(520px, calc(100vw - 48px));
+  padding: 28px 34px 30px;
+  border-radius: 8px;
+  background: rgba(255, 248, 223, 0.94);
+  box-shadow: 0 18px 44px rgba(103, 70, 42, 0.22);
+}
+
+.goal-panel[hidden] {
+  display: none;
+}
+
+.goal-panel h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 46px);
+}
+
+.goal-panel p {
+  margin: 0 0 8px;
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 800;
+}
+
+.restart-button {
+  min-width: 150px;
+  padding: 12px 22px;
+  border-radius: 8px;
+  color: white;
+  background: #e87964;
+  box-shadow: 0 6px 0 #c95c4a;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.restart-button:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #c95c4a;
+}
+
+.orientation-panel {
+  inset: 0;
+  padding: 28px;
+  background: linear-gradient(#bfeeff, #fbe6b3);
+  font-size: 24px;
+  font-weight: 800;
+  display: none;
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .orientation-panel {
+    display: grid;
+  }
+}
+
+@media (pointer: fine) and (min-width: 900px) {
+  .touch-controls {
+    opacity: 0.78;
+  }
+}

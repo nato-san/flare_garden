@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#f8d7a8" />
+    <title>Flare Garden Prototype Step1</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="game-shell" aria-label="Flare Garden">
+      <div class="orientation-panel" id="orientationPanel">
+        <div>スマートフォンを横向きにして遊んでね</div>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="gameCanvas" width="1280" height="720" aria-label="Flare Garden game canvas"></canvas>
+      </div>
+
+      <div class="hud" id="hud">
+        <div class="score" id="scoreLabel">0 pt</div>
+      </div>
+
+      <div class="touch-controls" id="touchControls" aria-label="操作ボタン">
+        <div class="move-controls">
+          <button class="control-button" type="button" data-action="left" aria-label="左へ移動">‹</button>
+          <button class="control-button" type="button" data-action="right" aria-label="右へ移動">›</button>
+        </div>
+        <button class="control-button water-button" type="button" data-action="water" aria-label="水やり">水</button>
+      </div>
+
+      <section class="goal-panel" id="goalPanel" aria-live="polite" hidden>
+        <h1>Flare Gardenに到着！</h1>
+        <p id="finalScore">0 pt</p>
+        <button class="restart-button" id="restartButton" type="button">もう一度</button>
+      </section>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

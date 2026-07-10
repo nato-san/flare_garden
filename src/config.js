@@ -1,0 +1,37 @@
+export const CONFIG = {
+  canvasWidth: 1280,
+  canvasHeight: 720,
+  stageLength: 5000,
+  scrollSpeed: 130,
+  groundY: 620,
+  gravity: 1150,
+  player: {
+    width: 120,
+    height: 120,
+    moveSpeed: 340,
+    minScreenX: 120,
+    maxScreenX: 900,
+    startScreenX: 220,
+    y: 255,
+  },
+  water: {
+    intervalMs: 260,
+    speed: 520,
+    upwardSpeed: 50,
+    width: 22,
+    height: 22,
+    maxActiveDrops: 20,
+    hitPaddingX: 18,
+    hitPaddingY: 16,
+  },
+  flower: {
+    small: {
+      requiredWater: 1,
+      score: 30,
+      width: 90,
+      height: 100,
+    },
+  },
+  goalX: 4700,
+  assetManifestUrl: "./src/asset_manifest.js",
+};
