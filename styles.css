@@ -159,6 +159,45 @@ canvas {
   background: #e8e3da;
 }
 
+.progress-panel {
+  position: absolute;
+  right: calc(22px + var(--safe-right));
+  top: calc(14px + var(--safe-top));
+  z-index: 4;
+  width: clamp(180px, 25vw, 300px);
+  padding: 8px 10px 10px;
+  border-radius: 8px;
+  color: #6a4b2f;
+  background: rgba(255, 248, 223, 0.88);
+  box-shadow: 0 5px 14px rgba(108, 76, 44, 0.14);
+  pointer-events: none;
+}
+
+.progress-panel span {
+  display: block;
+  margin-bottom: 6px;
+  overflow: hidden;
+  font-size: clamp(12px, 1.5vw, 15px);
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(138, 90, 58, 0.15);
+}
+
+.progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e87964, #ffd166, #72d9f2);
+  transition: width 180ms ease;
+}
+
 .touch-controls {
   position: absolute;
   inset: auto 0 0 0;
@@ -484,6 +523,12 @@ canvas {
 
   .water-gauge {
     width: min(210px, 42vw);
+  }
+
+  .progress-panel {
+    top: calc(64px + var(--safe-top));
+    right: calc(14px + var(--safe-right));
+    width: min(190px, 44vw);
   }
 
   .mode-options {

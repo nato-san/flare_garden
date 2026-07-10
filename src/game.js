@@ -307,6 +307,10 @@ export class Game {
     this.ui.modeLabel.textContent = this.refillMode.toUpperCase();
     this.ui.waterLabel.textContent = `${this.currentWater} / ${can.maxWater}`;
     this.ui.waterFill.style.width = `${Math.max(0, Math.min(100, ratio * 100))}%`;
+    const progressMax = Math.max(1, stage1Layout.length - CONFIG.canvasWidth);
+    const progress = clamp(this.cameraX / progressMax, 0, 1);
+    this.ui.progressFill.style.width = `${progress * 100}%`;
+    this.ui.areaLabel.textContent = areaName(this.getCurrentArea().id);
 
     this.ui.waterGauge.classList.toggle("is-low", this.currentWater > 0 && this.currentWater <= CONFIG.ui.lowWaterThreshold);
     this.ui.waterGauge.classList.toggle("is-empty", this.currentWater === 0);
@@ -315,6 +319,13 @@ export class Game {
     const showRefill = this.state === STATE.playing && this.refillMode === "normal";
     this.ui.refillButton.hidden = !showRefill;
     this.ui.refillButton.disabled = !showRefill;
+  }
+
+  getCurrentArea() {
+    return (
+      stage1Layout.areas.find((area) => this.cameraX >= area.startX && this.cameraX < area.endX) ||
+      stage1Layout.areas[stage1Layout.areas.length - 1]
+    );
   }
 
   showToast(message) {
@@ -388,16 +399,43 @@ export class Game {
   }
 
   drawSky(ctx) {
+    const area = this.getCurrentArea().id;
     const gradient = ctx.createLinearGradient(0, 0, 0, CONFIG.canvasHeight);
-    gradient.addColorStop(0, "#bdeeff");
-    gradient.addColorStop(0.55, "#f7efc4");
-    gradient.addColorStop(1, "#f6cfa5");
+    if (area === "forest") {
+      gradient.addColorStop(0, "#b9e5f4");
+      gradient.addColorStop(0.58, "#dcefc7");
+      gradient.addColorStop(1, "#e7c99a");
+    } else if (area === "rainbow-hill") {
+      gradient.addColorStop(0, "#bdeeff");
+      gradient.addColorStop(0.5, "#f9f1c8");
+      gradient.addColorStop(1, "#ffd3b6");
+    } else {
+      gradient.addColorStop(0, "#bdeeff");
+      gradient.addColorStop(0.55, "#f7efc4");
+      gradient.addColorStop(1, "#f6cfa5");
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CONFIG.canvasWidth, CONFIG.canvasHeight);
 
     this.drawCloud(ctx, 210 - (this.cameraX * 0.12) % 1560, 130, 1.1);
     this.drawCloud(ctx, 720 - (this.cameraX * 0.1) % 1560, 86, 0.86);
     this.drawCloud(ctx, 1240 - (this.cameraX * 0.14) % 1560, 178, 1);
+    if (area === "rainbow-hill") this.drawRainbow(ctx);
+  }
+
+  drawRainbow(ctx) {
+    const x = 840 - (this.cameraX * 0.05) % 760;
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 16;
+    const colors = ["#ff9fb6", "#ffd166", "#9bd889", "#72d9f2"];
+    colors.forEach((color, index) => {
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, 300, 220 - index * 20, Math.PI * 1.08, Math.PI * 1.92);
+      ctx.stroke();
+    });
+    ctx.restore();
   }
 
   drawCloud(ctx, x, y, scale) {
@@ -416,13 +454,38 @@ export class Game {
   }
 
   drawMidground(ctx) {
-    this.drawHillBand(ctx, 0.28, 400, "#b6dda0", "#9fd18d", 42);
-    this.drawHillBand(ctx, 0.48, 470, "#ffd18e", "#f6bd74", 84);
-
-    for (let worldX = 320; worldX < stage1Layout.length; worldX += 620) {
-      const x = worldX - this.cameraX * 0.58;
-      this.drawTree(ctx, wrapX(x, -160, CONFIG.canvasWidth + 180), 420 + (worldX % 3) * 18);
+    const area = this.getCurrentArea().id;
+    if (area === "forest") {
+      this.drawHillBand(ctx, 0.28, 390, "#93c58c", "#76b077", 32);
+      this.drawHillBand(ctx, 0.48, 480, "#c6b87c", "#b99d68", 58);
+    } else if (area === "rainbow-hill") {
+      this.drawHillBand(ctx, 0.28, 390, "#bfe6a3", "#9fd98a", 52);
+      this.drawHillBand(ctx, 0.48, 462, "#ffd79e", "#f7ba79", 76);
+      this.drawPaperFlowers(ctx);
+    } else {
+      this.drawHillBand(ctx, 0.28, 400, "#b6dda0", "#9fd18d", 42);
+      this.drawHillBand(ctx, 0.48, 470, "#ffd18e", "#f6bd74", 84);
     }
+
+    const treeGap = area === "forest" ? 330 : area === "rainbow-hill" ? 760 : 620;
+    const treeStart = area === "forest" ? 180 : 320;
+    for (let worldX = treeStart; worldX < stage1Layout.length; worldX += treeGap) {
+      const x = worldX - this.cameraX * 0.58;
+      const wrappedX = wrapX(x, -160, CONFIG.canvasWidth + 180);
+      const y = area === "forest" ? 388 + (worldX % 4) * 14 : 420 + (worldX % 3) * 18;
+      this.drawTree(ctx, wrappedX, y, area);
+    }
+  }
+
+  drawPaperFlowers(ctx) {
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    for (let worldX = 7350; worldX < stage1Layout.length; worldX += 420) {
+      const x = worldX - this.cameraX * 0.38;
+      const wrappedX = wrapX(x, -60, CONFIG.canvasWidth + 80);
+      this.drawMiniBloom(ctx, wrappedX, 432 + Math.sin(worldX) * 18);
+    }
+    ctx.restore();
   }
 
   drawHillBand(ctx, parallax, baseY, colorA, colorB, wave) {
@@ -444,14 +507,14 @@ export class Game {
     ctx.globalAlpha = 1;
   }
 
-  drawTree(ctx, x, y) {
+  drawTree(ctx, x, y, area = "meadow") {
     ctx.save();
     ctx.translate(x, y);
-    ctx.fillStyle = "#c98d69";
+    ctx.fillStyle = area === "forest" ? "#9f7658" : "#c98d69";
     ctx.beginPath();
     ctx.roundRect(-14, -16, 28, 96, 8);
     ctx.fill();
-    ctx.fillStyle = "#93cfa1";
+    ctx.fillStyle = area === "forest" ? "#77b981" : "#93cfa1";
     ctx.beginPath();
     ctx.ellipse(-28, -32, 52, 42, -0.25, 0, Math.PI * 2);
     ctx.ellipse(30, -48, 58, 46, 0.3, 0, Math.PI * 2);
@@ -461,7 +524,8 @@ export class Game {
   }
 
   drawForeground(ctx) {
-    ctx.fillStyle = "#d7a46f";
+    const area = this.getCurrentArea().id;
+    ctx.fillStyle = area === "forest" ? "#b99065" : "#d7a46f";
     ctx.beginPath();
     ctx.moveTo(0, CONFIG.groundY);
     for (let x = 0; x <= CONFIG.canvasWidth; x += 80) {
@@ -473,7 +537,7 @@ export class Game {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = "#f2c27c";
+    ctx.fillStyle = area === "forest" ? "#d0ae75" : "#f2c27c";
     for (let worldX = 0; worldX < stage1Layout.length; worldX += 130) {
       const x = worldX - this.cameraX;
       if (x < -40 || x > CONFIG.canvasWidth + 40) continue;
@@ -579,6 +643,16 @@ export class Game {
 
 function rectsOverlap(a, b) {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function areaName(id) {
+  if (id === "forest") return "紙の森";
+  if (id === "rainbow-hill") return "虹の丘";
+  return "はじまりの花畑";
 }
 
 function wrapX(value, min, max) {

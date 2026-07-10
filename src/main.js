@@ -10,6 +10,8 @@ const ui = {
   waterGauge: document.getElementById("waterGauge"),
   waterLabel: document.getElementById("waterLabel"),
   waterFill: document.getElementById("waterFill"),
+  progressFill: document.getElementById("progressFill"),
+  areaLabel: document.getElementById("areaLabel"),
   refillButton: document.getElementById("refillButton"),
   waterButton: document.querySelector("[data-action='water']"),
   toast: document.getElementById("toast"),

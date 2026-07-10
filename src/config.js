@@ -1,7 +1,7 @@
 export const CONFIG = {
   canvasWidth: 1280,
   canvasHeight: 720,
-  stageLength: 5000,
+  stageLength: 12500,
   scrollSpeed: 130,
   groundY: 620,
   gravity: 1150,
@@ -44,6 +44,6 @@ export const CONFIG = {
       height: 100,
     },
   },
-  goalX: 4700,
+  goalX: 12100,
   assetManifestUrl: "./src/asset_manifest.js",
 };
