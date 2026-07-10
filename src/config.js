@@ -24,6 +24,18 @@ export const CONFIG = {
     hitPaddingX: 18,
     hitPaddingY: 16,
   },
+  wateringCan: {
+    maxWater: 50,
+    initialWater: 25,
+    refillAmount: 10,
+    refillCost: 100,
+  },
+  ui: {
+    lowWaterThreshold: 10,
+    refillAnimationMs: 700,
+    emptyFeedbackCooldownMs: 500,
+    messageMs: 900,
+  },
   flower: {
     small: {
       requiredWater: 1,

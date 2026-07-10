@@ -5,6 +5,7 @@ import { Player } from "./entities/player.js";
 import { Flower } from "./entities/flower.js";
 
 const STATE = {
+  ready: "ready",
   playing: "playing",
   arrived: "arrived",
 };
@@ -24,28 +25,68 @@ export class Game {
     this.waterDrops = [];
     this.floaters = [];
     this.flowers = [];
-    this.state = STATE.playing;
+    this.state = STATE.ready;
+    this.currentWater = CONFIG.wateringCan.initialWater;
+    this.refillMode = "normal";
+    this.refillCount = 0;
+    this.totalWaterUsed = 0;
+    this.emptyFeedbackCooldown = 0;
+    this.toastTimer = 0;
+    this.refillFlashTimer = 0;
+    this.scorePulseX = 96;
+    this.autoRefillArmed = true;
+    this.audioContext = null;
     this.animationFrame = 0;
   }
 
   async start() {
     await this.assets.loadAll();
-    this.reset();
+    this.showModeSelect();
     this.lastTime = performance.now();
     this.animationFrame = requestAnimationFrame((time) => this.loop(time));
   }
 
-  reset() {
+  showModeSelect() {
+    this.state = STATE.ready;
+    this.input.setEnabled(false);
+    this.input.clear();
+    this.ui.modePanel.hidden = false;
+    this.ui.goalPanel.hidden = true;
+    this.ui.refillButton.hidden = true;
+    this.resetStateValues(this.refillMode);
+    this.updateHud();
+  }
+
+  startRun(mode) {
+    this.reset(mode);
+  }
+
+  reset(mode = this.refillMode) {
+    this.resetStateValues(mode);
+    this.state = STATE.playing;
+    this.input.setEnabled(true);
+    this.ui.modePanel.hidden = true;
+    this.ui.goalPanel.hidden = true;
+    this.updateHud();
+  }
+
+  resetStateValues(mode) {
     this.cameraX = 0;
     this.score = 0;
+    this.currentWater = CONFIG.wateringCan.initialWater;
+    this.refillMode = mode;
+    this.refillCount = 0;
+    this.totalWaterUsed = 0;
     this.waterCooldown = 0;
     this.waterDrops = [];
     this.floaters = [];
+    this.emptyFeedbackCooldown = 0;
+    this.toastTimer = 0;
+    this.refillFlashTimer = 0;
+    this.autoRefillArmed = true;
     this.flowers = stage1Layout.flowers.map((flower) => new Flower(flower));
     this.player.reset();
-    this.state = STATE.playing;
-    this.input.setEnabled(true);
-    this.ui.goalPanel.hidden = true;
+    this.hideToast();
     this.ui.scoreLabel.textContent = "0 pt";
   }
 
@@ -62,6 +103,9 @@ export class Game {
   update(dt) {
     const active = this.state === STATE.playing;
     this.player.update(dt, this.input, active);
+    this.emptyFeedbackCooldown = Math.max(0, this.emptyFeedbackCooldown - dt * 1000);
+    this.refillFlashTimer = Math.max(0, this.refillFlashTimer - dt * 1000);
+    this.updateToast(dt);
 
     if (active) {
       this.cameraX += CONFIG.scrollSpeed * dt;
@@ -73,6 +117,7 @@ export class Game {
     this.updateDrops(dt);
     this.flowers.forEach((flower) => flower.update(dt));
     this.updateFloaters(dt);
+    this.updateHud();
   }
 
   handleWatering(dt) {
@@ -83,9 +128,39 @@ export class Game {
 
     this.waterCooldown -= dt * 1000;
     if (this.waterCooldown <= 0 && this.waterDrops.length < CONFIG.water.maxActiveDrops) {
+      if (this.currentWater <= 0) {
+        this.handleEmptyWater();
+        this.waterCooldown = CONFIG.water.intervalMs;
+        return;
+      }
       this.spawnWaterDrop();
+      this.consumeWater();
       this.waterCooldown = CONFIG.water.intervalMs;
     }
+  }
+
+  consumeWater() {
+    this.currentWater = Math.max(0, this.currentWater - 1);
+    this.totalWaterUsed += 1;
+    if (this.currentWater === 0 && this.refillMode === "auto") {
+      this.autoRefillArmed = true;
+      this.tryRefill("auto");
+    }
+  }
+
+  handleEmptyWater() {
+    if (this.refillMode === "auto" && this.autoRefillArmed && this.score >= CONFIG.wateringCan.refillCost) {
+      this.tryRefill("auto");
+      return;
+    }
+
+    if (this.emptyFeedbackCooldown > 0) return;
+    this.emptyFeedbackCooldown = CONFIG.ui.emptyFeedbackCooldownMs;
+    this.showToast(this.refillMode === "auto" ? "ポイント不足" : "お水がからっぽ！");
+    this.bumpWaterGauge();
+    this.setWaterButtonEmpty();
+    this.playFeedbackSound("fail");
+    if (this.refillMode === "auto") this.autoRefillArmed = false;
   }
 
   spawnWaterDrop() {
@@ -140,14 +215,74 @@ export class Game {
   addScore(points, x, y) {
     this.score += points;
     this.ui.scoreLabel.textContent = `${this.score} pt`;
-    this.floaters.push({ text: `+${points}`, x, y, age: 0, duration: 1 });
+    this.floaters.push({ text: `+${points}`, x, y, age: 0, duration: 1, color: "#e87964", vy: -42 });
+    if (this.refillMode === "auto" && this.currentWater === 0 && this.score >= CONFIG.wateringCan.refillCost) {
+      this.autoRefillArmed = true;
+      this.tryRefill("auto");
+    }
   }
 
   updateFloaters(dt) {
     this.floaters = this.floaters.filter((floater) => {
       floater.age += dt;
-      floater.y -= 42 * dt;
+      floater.x += (floater.vx || 0) * dt;
+      floater.y += (floater.vy || -42) * dt;
       return floater.age < floater.duration;
+    });
+  }
+
+  tryRefill(source) {
+    if (this.state !== STATE.playing) return false;
+    const can = CONFIG.wateringCan;
+    if (this.currentWater >= can.maxWater) {
+      if (source === "normal") this.denyRefill("満タンです");
+      return false;
+    }
+    if (this.score < can.refillCost) {
+      this.denyRefill("ポイントが足りません");
+      if (source === "auto") this.autoRefillArmed = false;
+      return false;
+    }
+
+    this.score = Math.max(0, this.score - can.refillCost);
+    this.currentWater = Math.min(this.currentWater + can.refillAmount, can.maxWater);
+    this.refillCount += 1;
+    this.autoRefillArmed = true;
+    this.ui.scoreLabel.textContent = `${this.score} pt`;
+    this.showRefillFeedback(can);
+    this.playFeedbackSound("success");
+    this.updateHud();
+    return true;
+  }
+
+  denyRefill(message) {
+    this.showToast(message);
+    this.bumpWaterGauge();
+    this.bumpRefillButton();
+    this.playFeedbackSound("fail");
+  }
+
+  showRefillFeedback(can) {
+    this.refillFlashTimer = CONFIG.ui.refillAnimationMs;
+    this.showToast(`お水 +${can.refillAmount}`);
+    this.floaters.push({
+      text: `-${can.refillCost}pt`,
+      x: this.scorePulseX,
+      y: 76,
+      age: 0,
+      duration: 1,
+      color: "#d85770",
+      vy: -34,
+    });
+    this.floaters.push({
+      text: `+${can.refillAmount}`,
+      x: CONFIG.canvasWidth / 2,
+      y: 82,
+      age: 0,
+      duration: 0.9,
+      color: "#37bde0",
+      vy: -18,
+      vx: 22,
     });
   }
 
@@ -157,8 +292,85 @@ export class Game {
       this.state = STATE.arrived;
       this.input.setEnabled(false);
       this.waterDrops = [];
-      this.ui.finalScore.textContent = `${this.score} pt`;
+      this.ui.finalScore.textContent = `スコア ${this.score}pt`;
+      this.ui.finalWater.textContent = `残り水 ${this.currentWater} / ${CONFIG.wateringCan.maxWater}`;
+      this.ui.finalRefills.textContent = `補充 ${this.refillCount}回`;
+      this.ui.refillButton.hidden = true;
       this.ui.goalPanel.hidden = false;
+    }
+  }
+
+  updateHud() {
+    const can = CONFIG.wateringCan;
+    const ratio = can.maxWater > 0 ? this.currentWater / can.maxWater : 0;
+    this.ui.scoreLabel.textContent = `${this.score} pt`;
+    this.ui.modeLabel.textContent = this.refillMode.toUpperCase();
+    this.ui.waterLabel.textContent = `${this.currentWater} / ${can.maxWater}`;
+    this.ui.waterFill.style.width = `${Math.max(0, Math.min(100, ratio * 100))}%`;
+
+    this.ui.waterGauge.classList.toggle("is-low", this.currentWater > 0 && this.currentWater <= CONFIG.ui.lowWaterThreshold);
+    this.ui.waterGauge.classList.toggle("is-empty", this.currentWater === 0);
+    this.ui.waterGauge.classList.toggle("is-flashing", this.refillFlashTimer > 0);
+
+    const showRefill = this.state === STATE.playing && this.refillMode === "normal";
+    this.ui.refillButton.hidden = !showRefill;
+    this.ui.refillButton.disabled = !showRefill;
+  }
+
+  showToast(message) {
+    this.ui.toast.textContent = message;
+    this.ui.toast.hidden = false;
+    this.toastTimer = CONFIG.ui.messageMs;
+  }
+
+  hideToast() {
+    this.ui.toast.hidden = true;
+    this.ui.toast.textContent = "";
+    this.toastTimer = 0;
+  }
+
+  updateToast(dt) {
+    if (this.toastTimer <= 0) return;
+    this.toastTimer -= dt * 1000;
+    if (this.toastTimer <= 0) this.hideToast();
+  }
+
+  bumpWaterGauge() {
+    this.ui.waterGauge.classList.remove("is-shaking");
+    void this.ui.waterGauge.offsetWidth;
+    this.ui.waterGauge.classList.add("is-shaking");
+  }
+
+  bumpRefillButton() {
+    this.ui.refillButton.classList.remove("is-denied");
+    void this.ui.refillButton.offsetWidth;
+    this.ui.refillButton.classList.add("is-denied");
+  }
+
+  setWaterButtonEmpty() {
+    this.ui.waterButton.classList.add("is-empty");
+    window.setTimeout(() => this.ui.waterButton.classList.remove("is-empty"), 180);
+  }
+
+  playFeedbackSound(type) {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      this.audioContext ||= new AudioContext();
+      const context = this.audioContext;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = type === "success" ? "sine" : "triangle";
+      oscillator.frequency.value = type === "success" ? 720 : 180;
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.035, context.currentTime + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.16);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.18);
+    } catch {
+      // Visual feedback remains the primary signal if audio is unavailable.
     }
   }
 
@@ -355,7 +567,7 @@ export class Game {
       const alpha = 1 - floater.age / floater.duration;
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = "#e87964";
+      ctx.fillStyle = floater.color || "#e87964";
       ctx.font = "800 34px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";

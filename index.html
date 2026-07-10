@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Flare Garden" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Flare Garden Prototype Step1</title>
+    <title>Flare Garden Prototype Step2</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -28,6 +28,16 @@
 
       <div class="hud" id="hud">
         <div class="score" id="scoreLabel">0 pt</div>
+        <div class="mode-chip" id="modeLabel">NORMAL</div>
+        <div class="water-gauge" id="waterGauge">
+          <div class="water-gauge__top">
+            <span>WATER</span>
+            <strong id="waterLabel">25 / 50</strong>
+          </div>
+          <div class="water-gauge__track">
+            <div class="water-gauge__fill" id="waterFill"></div>
+          </div>
+        </div>
       </div>
 
       <div class="touch-controls" id="touchControls" aria-label="操作ボタン">
@@ -35,13 +45,41 @@
           <button class="control-button" type="button" data-action="left" aria-label="左へ移動">‹</button>
           <button class="control-button" type="button" data-action="right" aria-label="右へ移動">›</button>
         </div>
-        <button class="control-button water-button" type="button" data-action="water" aria-label="水やり">水</button>
+        <div class="right-controls">
+          <button class="refill-button" id="refillButton" type="button" aria-label="水を補充">
+            <span>+10</span>
+            <small>100pt</small>
+          </button>
+          <button class="control-button water-button" type="button" data-action="water" aria-label="水やり">水</button>
+        </div>
       </div>
+
+      <div class="toast" id="toast" hidden></div>
 
       <section class="goal-panel" id="goalPanel" aria-live="polite" hidden>
         <h1>Flare Gardenに到着！</h1>
-        <p id="finalScore">0 pt</p>
+        <p id="finalScore">スコア 0pt</p>
+        <p class="result-line" id="finalWater">残り水 0 / 50</p>
+        <p class="result-line" id="finalRefills">補充 0回</p>
         <button class="restart-button" id="restartButton" type="button">もう一度</button>
+      </section>
+
+      <section class="mode-panel" id="modePanel" aria-live="polite">
+        <div class="mode-card">
+          <h1>水の補充方法を選んでね</h1>
+          <div class="mode-options">
+            <article>
+              <h2>AUTO</h2>
+              <p>水が0になったら、100ptで自動補充します。</p>
+              <button class="mode-button" type="button" data-mode="auto">AUTOではじめる</button>
+            </article>
+            <article>
+              <h2>NORMAL</h2>
+              <p>好きなタイミングで、100ptを使って補充します。</p>
+              <button class="mode-button" type="button" data-mode="normal">NORMALではじめる</button>
+            </article>
+          </div>
+        </div>
       </section>
     </main>
 
