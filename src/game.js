@@ -9,7 +9,6 @@ const STATE = {
   countdown: "countdown",
   playing: "playing",
   arrived: "arrived",
-  gameOver: "gameOver",
 };
 
 export class Game {
@@ -64,7 +63,6 @@ export class Game {
     this.ui.modePanel.hidden = false;
     this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
-    this.ui.gameOverPanel.hidden = true;
     this.ui.refillButton.hidden = true;
     this.resetStateValues(this.selectedMode);
     this.updateModeButtons();
@@ -84,7 +82,6 @@ export class Game {
     this.input.setEnabled(false);
     this.ui.modePanel.hidden = true;
     this.ui.goalPanel.hidden = true;
-    this.ui.gameOverPanel.hidden = true;
     this.ui.refillButton.hidden = true;
     this.countdownIndex = 0;
     this.countdownTimer = 0;
@@ -100,7 +97,6 @@ export class Game {
     this.ui.modePanel.hidden = true;
     this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
-    this.ui.gameOverPanel.hidden = true;
     this.updateHud();
   }
 
@@ -150,7 +146,7 @@ export class Game {
 
   update(dt) {
     const active = this.state === STATE.playing;
-    this.player.update(dt, this.input, active);
+    const movement = this.player.update(dt, this.input, active, this.cameraX);
     this.emptyFeedbackCooldown = Math.max(0, this.emptyFeedbackCooldown - dt * 1000);
     this.refillFlashTimer = Math.max(0, this.refillFlashTimer - dt * 1000);
     this.updateToast(dt);
@@ -161,12 +157,12 @@ export class Game {
 
     if (active) {
       this.elapsedTime += dt;
-      this.cameraX += CONFIG.scrollSpeed * dt;
-      this.cameraX = Math.min(this.cameraX, CONFIG.goalX);
+      this.metrics.forwardDistance += movement.forward;
+      this.metrics.backDistance += movement.back;
+      this.updateCamera(dt);
       this.handleWatering(dt);
       this.updateFlowerVisibilityMetrics(dt);
       this.checkGoal();
-      this.checkGameOver();
     }
 
     this.updateDrops(dt);
@@ -222,11 +218,6 @@ export class Game {
   handleEmptyWater() {
     if (this.refillMode === "auto" && this.autoRefillArmed && this.score >= CONFIG.wateringCan.refillCost) {
       this.tryRefill("auto");
-      return;
-    }
-
-    if (this.cannotRefill()) {
-      this.triggerGameOver();
       return;
     }
 
@@ -353,36 +344,6 @@ export class Game {
     return true;
   }
 
-  cannotRefill() {
-    return this.currentWater <= 0 && this.score < CONFIG.wateringCan.refillCost;
-  }
-
-  checkGameOver() {
-    if (this.state !== STATE.playing) return;
-    if (!this.cannotRefill()) return;
-    if (this.waterDrops.length > 0) return;
-    this.triggerGameOver();
-  }
-
-  triggerGameOver() {
-    if (this.state === STATE.gameOver || this.state === STATE.arrived) return;
-    this.state = STATE.gameOver;
-    this.input.setEnabled(false);
-    this.input.clear();
-    this.waterDrops = [];
-    this.ui.gameOverScore.textContent = `スコア ${this.score}pt`;
-    this.ui.gameOverWater.textContent = `残り水 ${this.currentWater} / ${CONFIG.wateringCan.maxWater}`;
-    this.ui.gameOverRefills.textContent = `補充 ${this.refillCount}回`;
-    this.ui.refillButton.hidden = true;
-    this.ui.modePanel.hidden = true;
-    this.ui.goalPanel.hidden = true;
-    this.ui.countdown.hidden = true;
-    this.ui.gameOverPanel.hidden = false;
-    this.showToast("お水もポイントも足りません");
-    this.playFeedbackSound("fail");
-    this.updateHud();
-  }
-
   denyRefill(message) {
     this.showToast(message);
     this.bumpWaterGauge();
@@ -422,7 +383,25 @@ export class Game {
       noFlowerVisibleTime: 0,
       noFlowerVisibleCurrent: 0,
       noFlowerVisibleMax: 0,
+      forwardDistance: 0,
+      backDistance: 0,
     };
+  }
+
+  updateCamera() {
+    this.player.updateScreenX(this.cameraX);
+    if (this.player.screenX > CONFIG.camera.followEndX) {
+      this.cameraX += this.player.screenX - CONFIG.camera.followEndX;
+    } else if (this.player.screenX < CONFIG.camera.followStartX) {
+      this.cameraX -= CONFIG.camera.followStartX - this.player.screenX;
+    }
+
+    this.cameraX = clamp(this.cameraX, CONFIG.camera.minX, this.maxCameraX());
+    this.player.updateScreenX(this.cameraX);
+  }
+
+  maxCameraX() {
+    return Math.max(0, stage1Layout.length - CONFIG.canvasWidth);
   }
 
   updateBloomChain() {
@@ -498,8 +477,7 @@ export class Game {
   }
 
   checkGoal() {
-    const playerWorldX = this.cameraX + this.player.screenX;
-    if (this.cameraX >= CONFIG.goalX - 220 || playerWorldX >= stage1Layout.goal.x) {
+    if (this.player.worldX + this.player.width / 2 >= stage1Layout.goal.x) {
       this.state = STATE.arrived;
       this.input.setEnabled(false);
       this.waterDrops = [];
@@ -507,7 +485,6 @@ export class Game {
       this.ui.finalWater.textContent = `残り水 ${this.currentWater} / ${CONFIG.wateringCan.maxWater}`;
       this.ui.finalRefills.textContent = `補充 ${this.refillCount}回`;
       this.ui.refillButton.hidden = true;
-      this.ui.gameOverPanel.hidden = true;
       this.ui.goalPanel.hidden = false;
     }
   }
@@ -519,8 +496,8 @@ export class Game {
     this.ui.modeLabel.textContent = this.refillMode.toUpperCase();
     this.ui.waterLabel.textContent = `${this.currentWater} / ${can.maxWater}`;
     this.ui.waterFill.style.width = `${Math.max(0, Math.min(100, ratio * 100))}%`;
-    const progressMax = Math.max(1, stage1Layout.length - CONFIG.canvasWidth);
-    const progress = clamp(this.cameraX / progressMax, 0, 1);
+    const progressMax = Math.max(1, stage1Layout.goal.x - CONFIG.player.startWorldX);
+    const progress = clamp((this.player.worldX - CONFIG.player.startWorldX) / progressMax, 0, 1);
     this.ui.progressFill.style.width = `${progress * 100}%`;
     this.ui.areaLabel.textContent = areaName(this.getCurrentArea().id);
 
@@ -541,7 +518,7 @@ export class Game {
 
   getCurrentArea() {
     return (
-      stage1Layout.areas.find((area) => this.cameraX >= area.startX && this.cameraX < area.endX) ||
+      stage1Layout.areas.find((area) => this.player.worldX >= area.startX && this.player.worldX < area.endX) ||
       stage1Layout.areas[stage1Layout.areas.length - 1]
     );
   }
@@ -552,13 +529,13 @@ export class Game {
     const distance = CONFIG.stage.transitionDistance;
     const half = distance / 2;
     const next = stage1Layout.areas[index + 1];
-    if (next && this.cameraX > current.endX - half) {
-      return { from: current, to: next, t: clamp((this.cameraX - (current.endX - half)) / distance, 0, 1) };
+    if (next && this.player.worldX > current.endX - half) {
+      return { from: current, to: next, t: clamp((this.player.worldX - (current.endX - half)) / distance, 0, 1) };
     }
 
     const previous = stage1Layout.areas[index - 1];
-    if (previous && this.cameraX < current.startX + half) {
-      return { from: previous, to: current, t: clamp((this.cameraX - (current.startX - half)) / distance, 0, 1) };
+    if (previous && this.player.worldX < current.startX + half) {
+      return { from: previous, to: current, t: clamp((this.player.worldX - (current.startX - half)) / distance, 0, 1) };
     }
 
     return { from: current, to: current, t: 0 };
@@ -923,8 +900,17 @@ export class Game {
   }
 
   drawDebugMetrics(ctx) {
+    const progressMax = Math.max(1, stage1Layout.goal.x - CONFIG.player.startWorldX);
+    const progress = clamp((this.player.worldX - CONFIG.player.startWorldX) / progressMax, 0, 1);
+    const distanceToGoal = Math.max(0, stage1Layout.goal.x - this.player.worldX);
     const lines = [
       `time ${this.elapsedTime.toFixed(1)}s`,
+      `player world ${this.player.worldX.toFixed(0)}`,
+      `player screen ${this.player.screenX.toFixed(0)}`,
+      `camera ${this.cameraX.toFixed(0)}`,
+      `progress ${(progress * 100).toFixed(1)}%`,
+      `goal left ${distanceToGoal.toFixed(0)}`,
+      `move F/B ${this.metrics.forwardDistance.toFixed(0)}/${this.metrics.backDistance.toFixed(0)}`,
       `bloom ${this.metrics.bloomedTotal}/${this.flowers.length}`,
       `S/M/L ${this.metrics.bloomedByType.small}/${this.metrics.bloomedByType.medium}/${this.metrics.bloomedByType.large}`,
       `water used ${this.totalWaterUsed}`,
@@ -934,12 +920,12 @@ export class Game {
       `no flower max ${this.metrics.noFlowerVisibleMax.toFixed(1)}s`,
     ];
     const x = 300;
-    const y = CONFIG.canvasHeight - 190;
+    const y = CONFIG.canvasHeight - 300;
 
     ctx.save();
     ctx.fillStyle = "rgba(64, 49, 34, 0.72)";
     ctx.beginPath();
-    ctx.roundRect(x, y, 260, 174, 8);
+    ctx.roundRect(x, y, 300, 284, 8);
     ctx.fill();
     ctx.fillStyle = "#fff8df";
     ctx.font = "700 17px sans-serif";

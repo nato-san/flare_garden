@@ -8,10 +8,13 @@ export class InputController {
     this.movePointerId = null;
     this.moveTargetX = null;
     this.moveTargetY = null;
+    this.moveTargetWorldX = null;
     this.waterPulseTimer = 0;
+    this.getCameraX = () => 0;
   }
 
-  bind(canvas) {
+  bind(canvas, getCameraX = () => 0) {
+    this.getCameraX = getCameraX;
     window.addEventListener("keydown", (event) => this.handleKey(event, true));
     window.addEventListener("keyup", (event) => this.handleKey(event, false));
     window.addEventListener("blur", () => this.clear());
@@ -64,6 +67,7 @@ export class InputController {
     this.movePointerId = null;
     this.moveTargetX = null;
     this.moveTargetY = null;
+    this.moveTargetWorldX = null;
     window.clearTimeout(this.waterPulseTimer);
     this.waterPulseTimer = 0;
     this.heldPointers.clear();
@@ -136,7 +140,6 @@ export class InputController {
     if (event.pointerId !== this.movePointerId) return;
     event.preventDefault();
     this.movePointerId = null;
-    this.clearMoveTarget();
   }
 
   startMouseMove(event, canvas) {
@@ -156,7 +159,6 @@ export class InputController {
     if (this.movePointerId !== "mouse") return;
     event.preventDefault();
     this.movePointerId = null;
-    this.clearMoveTarget();
   }
 
   startTouchMove(event, canvas) {
@@ -176,17 +178,18 @@ export class InputController {
     if (this.movePointerId !== "touch") return;
     event.preventDefault();
     this.movePointerId = null;
-    this.clearMoveTarget();
   }
 
   setMoveTarget(point) {
     this.moveTargetX = point.x;
     this.moveTargetY = point.y;
+    this.moveTargetWorldX = this.getCameraX() + point.x;
   }
 
   clearMoveTarget() {
     this.moveTargetX = null;
     this.moveTargetY = null;
+    this.moveTargetWorldX = null;
   }
 
   pulseWater(event) {

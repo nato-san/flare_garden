@@ -3,6 +3,7 @@ import { drawImageOrFallback } from "../assets.js";
 
 export class Player {
   constructor() {
+    this.worldX = CONFIG.player.startWorldX;
     this.screenX = CONFIG.player.startScreenX;
     this.y = CONFIG.player.y;
     this.width = CONFIG.player.width;
@@ -12,21 +13,25 @@ export class Player {
   }
 
   reset() {
+    this.worldX = CONFIG.player.startWorldX;
     this.screenX = CONFIG.player.startScreenX;
     this.y = CONFIG.player.y;
     this.facing = "right";
     this.floatTime = 0;
   }
 
-  update(dt, input, active) {
+  update(dt, input, active, cameraX) {
     this.floatTime += dt;
-    if (!active) return;
+    if (!active) {
+      this.updateScreenX(cameraX);
+      return { dx: 0, forward: 0, back: 0 };
+    }
 
     let direction = 0;
     if (input.left) direction -= 1;
     if (input.right) direction += 1;
-    if (input.moveTargetX !== null) {
-      const delta = input.moveTargetX - this.screenX;
+    if (input.moveTargetWorldX !== null) {
+      const delta = input.moveTargetWorldX - this.worldX;
       if (Math.abs(delta) > CONFIG.player.dragDeadZone) direction = Math.sign(delta);
       else direction = 0;
     }
@@ -34,10 +39,11 @@ export class Player {
     if (direction < 0) this.facing = "left";
     if (direction > 0) this.facing = "right";
 
+    const previousWorldX = this.worldX;
     if (input.moveTargetX !== null) {
       const maxStep = CONFIG.player.dragMoveSpeed * dt;
-      const delta = input.moveTargetX - this.screenX;
-      this.screenX += clamp(delta, -maxStep, maxStep);
+      const delta = input.moveTargetWorldX - this.worldX;
+      this.worldX += clamp(delta, -maxStep, maxStep);
       if (CONFIG.player.verticalMovementEnabled && input.moveTargetY !== null) {
         const verticalDelta = input.moveTargetY - this.y;
         if (Math.abs(verticalDelta) > CONFIG.player.dragVerticalDeadZone) {
@@ -45,10 +51,17 @@ export class Player {
         }
       }
     } else {
-      this.screenX += direction * CONFIG.player.moveSpeed * dt;
+      this.worldX += direction * CONFIG.player.moveSpeed * dt;
     }
-    this.screenX = clamp(this.screenX, CONFIG.player.minScreenX, CONFIG.player.maxScreenX);
+    this.worldX = clamp(this.worldX, CONFIG.player.minWorldX, CONFIG.player.maxWorldX);
     this.y = clamp(this.y, CONFIG.player.minY, CONFIG.player.maxY);
+    this.updateScreenX(cameraX);
+    const dx = this.worldX - previousWorldX;
+    return { dx, forward: Math.max(0, dx), back: Math.max(0, -dx) };
+  }
+
+  updateScreenX(cameraX) {
+    this.screenX = this.worldX - cameraX;
   }
 
   getNozzlePosition() {
