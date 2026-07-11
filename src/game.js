@@ -25,6 +25,7 @@ export class Game {
     this.waterCooldown = 0;
     this.waterDrops = [];
     this.floaters = [];
+    this.particles = [];
     this.flowers = [];
     this.state = STATE.ready;
     this.currentWater = CONFIG.wateringCan.initialWater;
@@ -42,6 +43,10 @@ export class Game {
     this.audioContext = null;
     this.animationFrame = 0;
     this.runtimeErrorShown = false;
+    this.elapsedTime = 0;
+    this.lastBloomElapsed = -999;
+    this.chainBloomCount = 0;
+    this.metrics = this.createMetrics();
   }
 
   async start() {
@@ -106,11 +111,16 @@ export class Game {
     this.waterCooldown = 0;
     this.waterDrops = [];
     this.floaters = [];
+    this.particles = [];
     this.emptyFeedbackCooldown = 0;
     this.toastTimer = 0;
     this.refillFlashTimer = 0;
     this.autoRefillArmed = true;
     this.flowers = stage1Layout.flowers.map((flower) => new Flower(flower));
+    this.elapsedTime = 0;
+    this.lastBloomElapsed = -999;
+    this.chainBloomCount = 0;
+    this.metrics = this.createMetrics();
     this.player.reset();
     this.hideToast();
     this.ui.scoreLabel.textContent = "0 pt";
@@ -146,14 +156,17 @@ export class Game {
     }
 
     if (active) {
+      this.elapsedTime += dt;
       this.cameraX += CONFIG.scrollSpeed * dt;
       this.cameraX = Math.min(this.cameraX, CONFIG.goalX);
       this.handleWatering(dt);
+      this.updateFlowerVisibilityMetrics(dt);
       this.checkGoal();
     }
 
     this.updateDrops(dt);
     this.flowers.forEach((flower) => flower.update(dt));
+    this.updateParticles(dt);
     this.updateFloaters(dt);
     this.updateHud();
   }
@@ -243,12 +256,16 @@ export class Game {
           if (flower.isBloomed) continue;
           if (pointInRect(drop.x, drop.y, flower.getHitbox(this.cameraX))) {
             drop.used = true;
-            const gained = flower.water();
-            if (gained > 0) {
-              this.addScore(gained, flower.worldX - this.cameraX, flower.y - flower.height);
-              this.playFeedbackSound("success");
-            } else {
-              this.playFeedbackSound("hit");
+            const result = flower.water();
+            this.spawnHitParticles(flower.worldX - this.cameraX, flower.y - flower.height * 0.72);
+            this.playFeedbackSound("hit");
+            if (result.bloomed) {
+              this.metrics.bloomedTotal += 1;
+              this.metrics.bloomedByType[flower.type] += 1;
+              const chain = this.updateBloomChain();
+              this.spawnBloomParticles(flower.worldX - this.cameraX, flower.y - flower.height * 0.72, chain);
+              this.addScore(result.score, flower.worldX - this.cameraX, flower.y - flower.height, chain);
+              this.playFeedbackSound("success", chain);
             }
             break;
           }
@@ -257,6 +274,9 @@ export class Game {
 
       const offscreen = drop.x < -80 || drop.x > CONFIG.canvasWidth + 80;
       const grounded = drop.y > CONFIG.groundY + 30;
+      if (!drop.used && (offscreen || grounded)) {
+        this.metrics.wastedWater += 1;
+      }
       return !drop.used && !offscreen && !grounded;
     });
   }
@@ -270,10 +290,20 @@ export class Game {
     };
   }
 
-  addScore(points, x, y) {
+  addScore(points, x, y, chain = 0) {
     this.score += points;
     this.ui.scoreLabel.textContent = `${this.score} pt`;
-    this.floaters.push({ text: `+${points}`, x, y, age: 0, duration: 1, color: "#e87964", vy: -42 });
+    const chainBoost = Math.min(3, Math.max(0, chain - 1));
+    this.floaters.push({
+      text: `+${points}`,
+      x,
+      y,
+      age: 0,
+      duration: 1,
+      color: chainBoost > 0 ? "#d85770" : "#e87964",
+      vy: -42 - chainBoost * 7,
+      scale: 1 + chainBoost * 0.12,
+    });
     if (this.refillMode === "auto" && this.currentWater === 0 && this.score >= CONFIG.wateringCan.refillCost) {
       this.autoRefillArmed = true;
       this.tryRefill("auto");
@@ -341,6 +371,89 @@ export class Game {
       color: "#37bde0",
       vy: -18,
       vx: 22,
+    });
+  }
+
+  createMetrics() {
+    return {
+      bloomedTotal: 0,
+      bloomedByType: { small: 0, medium: 0, large: 0 },
+      wastedWater: 0,
+      noFlowerVisibleTime: 0,
+      noFlowerVisibleCurrent: 0,
+      noFlowerVisibleMax: 0,
+    };
+  }
+
+  updateBloomChain() {
+    const windowSec = CONFIG.flowerAnimation.chainWindowMs / 1000;
+    if (this.elapsedTime - this.lastBloomElapsed <= windowSec) {
+      this.chainBloomCount += 1;
+    } else {
+      this.chainBloomCount = 1;
+    }
+    this.lastBloomElapsed = this.elapsedTime;
+    return this.chainBloomCount;
+  }
+
+  updateFlowerVisibilityMetrics(dt) {
+    const hasVisibleTarget = this.flowers.some((flower) => {
+      if (flower.isBloomed) return false;
+      const x = flower.worldX - this.cameraX;
+      return x > -flower.width && x < CONFIG.canvasWidth + flower.width;
+    });
+
+    if (hasVisibleTarget) {
+      this.metrics.noFlowerVisibleCurrent = 0;
+      return;
+    }
+
+    this.metrics.noFlowerVisibleCurrent += dt;
+    this.metrics.noFlowerVisibleTime += dt;
+    this.metrics.noFlowerVisibleMax = Math.max(this.metrics.noFlowerVisibleMax, this.metrics.noFlowerVisibleCurrent);
+  }
+
+  spawnHitParticles(x, y) {
+    for (let i = 0; i < 3; i += 1) {
+      const angle = -Math.PI / 2 + (i - 1) * 0.7;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * 44,
+        vy: Math.sin(angle) * 52,
+        age: 0,
+        duration: 0.28,
+        radius: 3,
+        color: "#72d9f2",
+      });
+    }
+  }
+
+  spawnBloomParticles(x, y, chain) {
+    const count = CONFIG.flowerAnimation.particleCount + Math.min(2, Math.max(0, chain - 1));
+    for (let i = 0; i < count; i += 1) {
+      const angle = -Math.PI / 2 + (Math.PI * 2 * i) / count;
+      const speed = 48 + (i % 3) * 18;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 26,
+        age: 0,
+        duration: 0.55,
+        radius: 4 + (i % 2),
+        color: i % 2 === 0 ? "#ff9fb6" : "#ffd166",
+      });
+    }
+  }
+
+  updateParticles(dt) {
+    this.particles = this.particles.filter((particle) => {
+      particle.age += dt;
+      particle.x += particle.vx * dt;
+      particle.y += particle.vy * dt;
+      particle.vy += 140 * dt;
+      return particle.age < particle.duration;
     });
   }
 
@@ -445,7 +558,7 @@ export class Game {
     window.setTimeout(() => this.ui.waterButton.classList.remove("is-empty"), 180);
   }
 
-  playFeedbackSound(type) {
+  playFeedbackSound(type, chain = 1) {
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return;
@@ -454,7 +567,8 @@ export class Game {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       oscillator.type = type === "success" ? "sine" : "triangle";
-      oscillator.frequency.value = type === "success" ? 720 : type === "hit" ? 460 : 180;
+      const chainLift = Math.min(4, Math.max(0, chain - 1)) * CONFIG.flowerAnimation.chainPitchStep;
+      oscillator.frequency.value = type === "success" ? 720 + chainLift : type === "hit" ? 460 : 180;
       gain.gain.setValueAtTime(0.0001, context.currentTime);
       gain.gain.exponentialRampToValueAtTime(type === "hit" ? 0.018 : 0.035, context.currentTime + 0.015);
       gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (type === "hit" ? 0.08 : 0.16));
@@ -477,8 +591,10 @@ export class Game {
     this.flowers.forEach((flower) => flower.draw(ctx, this.cameraX, this.assets));
     this.drawWaterDrops(ctx);
     this.player.draw(ctx, this.assets);
+    this.drawParticles(ctx);
     this.drawFloaters(ctx);
     if (CONFIG.debug.showHitboxes) this.drawWaterDebug(ctx);
+    if (CONFIG.debug.enabled && CONFIG.debug.showMetrics) this.drawDebugMetrics(ctx);
   }
 
   drawSky(ctx) {
@@ -742,12 +858,54 @@ export class Game {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.fillStyle = floater.color || "#e87964";
-      ctx.font = "800 34px sans-serif";
+      ctx.font = `800 ${Math.round(34 * (floater.scale || 1))}px sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(floater.text, floater.x, floater.y);
       ctx.restore();
     }
+  }
+
+  drawParticles(ctx) {
+    for (const particle of this.particles) {
+      const alpha = 1 - particle.age / particle.duration;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = particle.color;
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(particle.age * 8);
+      ctx.beginPath();
+      ctx.roundRect(-particle.radius, -particle.radius, particle.radius * 2, particle.radius * 2, 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  drawDebugMetrics(ctx) {
+    const lines = [
+      `time ${this.elapsedTime.toFixed(1)}s`,
+      `bloom ${this.metrics.bloomedTotal}/${this.flowers.length}`,
+      `S/M/L ${this.metrics.bloomedByType.small}/${this.metrics.bloomedByType.medium}/${this.metrics.bloomedByType.large}`,
+      `water used ${this.totalWaterUsed}`,
+      `waste ${this.metrics.wastedWater}`,
+      `refill ${this.refillCount}`,
+      `no flower total ${this.metrics.noFlowerVisibleTime.toFixed(1)}s`,
+      `no flower max ${this.metrics.noFlowerVisibleMax.toFixed(1)}s`,
+    ];
+    const x = 300;
+    const y = CONFIG.canvasHeight - 190;
+
+    ctx.save();
+    ctx.fillStyle = "rgba(64, 49, 34, 0.72)";
+    ctx.beginPath();
+    ctx.roundRect(x, y, 260, 174, 8);
+    ctx.fill();
+    ctx.fillStyle = "#fff8df";
+    ctx.font = "700 17px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    lines.forEach((line, index) => ctx.fillText(line, x + 14, y + 12 + index * 20));
+    ctx.restore();
   }
 }
 

@@ -6,6 +6,8 @@ export class Flower {
     const values = CONFIG.flower[data.type];
     this.id = data.id;
     this.type = data.type;
+    this.group = data.group || "ungrouped";
+    this.pattern = data.pattern || "mixed";
     this.worldX = data.x;
     this.y = data.y;
     this.width = values.width;
@@ -32,15 +34,15 @@ export class Flower {
   }
 
   water() {
-    if (this.isBloomed) return 0;
+    if (this.isBloomed) return { bloomed: false, score: 0 };
     this.waterReceived += 1;
-    this.hitTimer = 0.22;
+    this.hitTimer = CONFIG.flowerAnimation.hitDurationMs / 1000;
     if (this.waterReceived >= this.requiredWater) {
       this.isBloomed = true;
-      this.bloomTimer = 0.45;
-      return this.score;
+      this.bloomTimer = CONFIG.flowerAnimation.bloomDurationMs / 1000;
+      return { bloomed: true, score: this.score };
     }
-    return 0;
+    return { bloomed: false, score: 0 };
   }
 
   update(dt) {
@@ -53,15 +55,22 @@ export class Flower {
     const y = this.y;
     const imageKey = this.isBloomed ? "flowers.smallBloom" : "flowers.smallBud";
     const image = assets.get(imageKey);
-    const scale = this.isBloomed ? 1 + this.bloomTimer * 0.45 : 1 + this.hitTimer * 0.28;
+    const bloomDuration = CONFIG.flowerAnimation.bloomDurationMs / 1000;
+    const bloomT = bloomDuration > 0 ? 1 - this.bloomTimer / bloomDuration : 1;
+    const bloomPulse = this.isBloomed && this.bloomTimer > 0 ? bloomScaleAt(bloomT) : 1;
+    const hitDuration = CONFIG.flowerAnimation.hitDurationMs / 1000;
+    const hitT = hitDuration > 0 ? this.hitTimer / hitDuration : 0;
+    const hitScale = this.isBloomed ? 1 : 1 + hitT * 0.08;
+    const jump = this.hitTimer > 0 ? Math.sin(hitT * Math.PI) * CONFIG.flowerAnimation.hitBouncePx : 0;
+    const scale = bloomPulse * hitScale;
     const width = this.width * scale;
     const height = this.height * scale;
 
     drawImageOrFallback(
       ctx,
       image,
-      (asset) => ctx.drawImage(asset, x - width / 2, y - height, width, height),
-      () => this.drawFallback(ctx, x, y, width, height),
+      (asset) => ctx.drawImage(asset, x - width / 2, y - jump - height, width, height),
+      () => this.drawFallback(ctx, x, y - jump, width, height),
     );
 
     if (!this.isBloomed && this.requiredWater > 1 && this.waterReceived > 0) {
@@ -98,12 +107,16 @@ export class Flower {
 
     if (this.isBloomed) {
       const headY = -this.height * 0.72;
+      const bloomDuration = CONFIG.flowerAnimation.bloomDurationMs / 1000;
+      const openT = bloomDuration > 0 ? 1 - this.bloomTimer / bloomDuration : 1;
+      const petalSpread = 0.82 + Math.min(1, openT) * 0.28;
+      const squash = this.bloomTimer > 0 ? 1 - Math.sin(openT * Math.PI) * 0.08 : 1;
       const petals = [
-        ["#ff9fb6", 0, headY - 7, this.width * 0.2, this.height * 0.24],
-        ["#ffd166", this.width * 0.23, headY + 5, this.width * 0.18, this.height * 0.22],
-        ["#f48fb1", -this.width * 0.23, headY + 5, this.width * 0.18, this.height * 0.22],
-        ["#ffc3a0", 0, headY + 17, this.width * 0.2, this.height * 0.22],
-        ["#f6a6d6", 0, headY - 22, this.width * 0.18, this.height * 0.2],
+        ["#ff9fb6", 0, headY - 7 * petalSpread, this.width * 0.2 * petalSpread, this.height * 0.24 * squash],
+        ["#ffd166", this.width * 0.23 * petalSpread, headY + 5, this.width * 0.18 * petalSpread, this.height * 0.22 * squash],
+        ["#f48fb1", -this.width * 0.23 * petalSpread, headY + 5, this.width * 0.18 * petalSpread, this.height * 0.22 * squash],
+        ["#ffc3a0", 0, headY + 17 * petalSpread, this.width * 0.2 * petalSpread, this.height * 0.22 * squash],
+        ["#f6a6d6", 0, headY - 22 * petalSpread, this.width * 0.18 * petalSpread, this.height * 0.2 * squash],
       ];
       for (const [color, px, py, rx, ry] of petals) {
         ctx.fillStyle = color;
@@ -117,15 +130,16 @@ export class Flower {
       ctx.fill();
     } else {
       const headY = -this.height * 0.72;
-      const open = 1 + bloomProgress * 0.35;
+      const open = 0.82 + bloomProgress * 0.62;
+      const split = bloomProgress * this.width * 0.09;
       ctx.fillStyle = "#ff9fb6";
       ctx.beginPath();
       ctx.ellipse(0, headY, this.width * 0.23 * open, this.height * 0.22 * open, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#f48fb1";
       ctx.beginPath();
-      ctx.ellipse(-this.width * 0.08, headY - 4, this.width * 0.1, this.height * 0.15, -0.35, 0, Math.PI * 2);
-      ctx.ellipse(this.width * 0.09, headY - 4, this.width * 0.1, this.height * 0.15, 0.35, 0, Math.PI * 2);
+      ctx.ellipse(-this.width * 0.08 - split, headY - 4, this.width * 0.1 * open, this.height * 0.15 * open, -0.35, 0, Math.PI * 2);
+      ctx.ellipse(this.width * 0.09 + split, headY - 4, this.width * 0.1 * open, this.height * 0.15 * open, 0.35, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -148,7 +162,8 @@ export class Flower {
   }
 
   drawHitSpark(ctx, x, y) {
-    const alpha = this.hitTimer / 0.22;
+    const hitDuration = CONFIG.flowerAnimation.hitDurationMs / 1000;
+    const alpha = hitDuration > 0 ? this.hitTimer / hitDuration : 0;
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = "#72d9f2";
@@ -156,6 +171,14 @@ export class Flower {
     ctx.beginPath();
     ctx.arc(x, y - this.height * 0.72, this.width * (0.28 + alpha * 0.12), 0, Math.PI * 2);
     ctx.stroke();
+    ctx.fillStyle = "#b9f3ff";
+    for (let i = 0; i < 3; i += 1) {
+      const angle = this.worldX * 0.01 + i * 2.2;
+      const radius = this.width * (0.18 + alpha * 0.18);
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(angle) * radius, y - this.height * 0.72 + Math.sin(angle) * radius, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -167,4 +190,11 @@ export class Flower {
     ctx.strokeRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height);
     ctx.restore();
   }
+}
+
+function bloomScaleAt(t) {
+  const peak = CONFIG.flowerAnimation.bloomScale;
+  if (t < 0.45) return 1 + (peak - 1) * (t / 0.45);
+  if (t < 0.7) return peak - (peak - 0.96) * ((t - 0.45) / 0.25);
+  return 0.96 + 0.04 * ((t - 0.7) / 0.3);
 }

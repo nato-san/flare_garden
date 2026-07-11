@@ -1,8 +1,10 @@
 import { Game } from "./game.js";
 import { InputController } from "./input.js";
+import { CONFIG } from "./config.js";
 
 installCanvasFallbacks();
 restoreBrowserPreviewMode();
+applyDebugQuery();
 
 const canvas = document.getElementById("gameCanvas");
 const input = new InputController();
@@ -59,6 +61,16 @@ function restoreBrowserPreviewMode() {
     }
   } catch {
     // Storage can be blocked in some browser contexts.
+  }
+}
+
+function applyDebugQuery() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("debug") === "1") {
+    CONFIG.debug.enabled = true;
+  }
+  if (params.get("hitboxes") === "1") {
+    CONFIG.debug.showHitboxes = true;
   }
 }
 

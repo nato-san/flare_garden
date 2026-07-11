@@ -38,18 +38,25 @@ export class Player {
       const maxStep = CONFIG.player.dragMoveSpeed * dt;
       const delta = input.moveTargetX - this.screenX;
       this.screenX += clamp(delta, -maxStep, maxStep);
+      if (CONFIG.player.verticalMovementEnabled && input.moveTargetY !== null) {
+        const verticalDelta = input.moveTargetY - this.y;
+        if (Math.abs(verticalDelta) > CONFIG.player.dragVerticalDeadZone) {
+          this.y += clamp(verticalDelta, -maxStep, maxStep);
+        }
+      }
     } else {
       this.screenX += direction * CONFIG.player.moveSpeed * dt;
     }
     this.screenX = clamp(this.screenX, CONFIG.player.minScreenX, CONFIG.player.maxScreenX);
+    this.y = clamp(this.y, CONFIG.player.minY, CONFIG.player.maxY);
   }
 
   getNozzlePosition() {
     const bob = Math.sin(this.floatTime * 4.2) * 10;
     const dir = this.facing === "right" ? 1 : -1;
     return {
-      x: this.screenX + dir * 62,
-      y: this.y + bob + 14,
+      x: this.screenX + dir * CONFIG.water.nozzleOffsetX,
+      y: this.y + bob + CONFIG.water.nozzleOffsetY,
     };
   }
 

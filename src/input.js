@@ -7,6 +7,7 @@ export class InputController {
     this.heldPointers = new Map();
     this.movePointerId = null;
     this.moveTargetX = null;
+    this.moveTargetY = null;
   }
 
   bind(canvas) {
@@ -60,6 +61,7 @@ export class InputController {
     this.water = false;
     this.movePointerId = null;
     this.moveTargetX = null;
+    this.moveTargetY = null;
     this.heldPointers.clear();
     document.querySelectorAll("[data-action]").forEach((button) => button.classList.remove("is-held"));
   }
@@ -70,8 +72,8 @@ export class InputController {
     }
     if (!this.enabled) return;
 
-    if ((event.code === "ArrowLeft" || event.code === "KeyA") && isDown) this.moveTargetX = null;
-    if ((event.code === "ArrowRight" || event.code === "KeyD") && isDown) this.moveTargetX = null;
+    if ((event.code === "ArrowLeft" || event.code === "KeyA") && isDown) this.clearMoveTarget();
+    if ((event.code === "ArrowRight" || event.code === "KeyD") && isDown) this.clearMoveTarget();
     if (event.code === "ArrowLeft" || event.code === "KeyA") this.left = isDown;
     if (event.code === "ArrowRight" || event.code === "KeyD") this.right = isDown;
     if (event.code === "Space") this.water = isDown;
@@ -83,7 +85,7 @@ export class InputController {
 
     button.setPointerCapture(event.pointerId);
     const action = button.dataset.action;
-    if (action === "left" || action === "right") this.moveTargetX = null;
+    if (action === "left" || action === "right") this.clearMoveTarget();
     this.heldPointers.set(event.pointerId, action);
     button.classList.add("is-held");
     this.setAction(action, true);
@@ -110,57 +112,70 @@ export class InputController {
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
     this.movePointerId = event.pointerId;
-    this.moveTargetX = canvasPointFromEvent(event, canvas).x;
+    this.setMoveTarget(canvasPointFromEvent(event, canvas));
   }
 
   updateDirectMove(event, canvas) {
     if (!this.enabled || event.pointerId !== this.movePointerId) return;
     event.preventDefault();
-    this.moveTargetX = canvasPointFromEvent(event, canvas).x;
+    this.setMoveTarget(canvasPointFromEvent(event, canvas));
   }
 
   endDirectMove(event) {
     if (event.pointerId !== this.movePointerId) return;
     event.preventDefault();
     this.movePointerId = null;
+    this.clearMoveTarget();
   }
 
   startMouseMove(event, canvas) {
     if (!this.enabled || this.movePointerId !== null) return;
     event.preventDefault();
     this.movePointerId = "mouse";
-    this.moveTargetX = canvasPointFromEvent(event, canvas).x;
+    this.setMoveTarget(canvasPointFromEvent(event, canvas));
   }
 
   updateMouseMove(event, canvas) {
     if (!this.enabled || this.movePointerId !== "mouse") return;
     event.preventDefault();
-    this.moveTargetX = canvasPointFromEvent(event, canvas).x;
+    this.setMoveTarget(canvasPointFromEvent(event, canvas));
   }
 
   endMouseMove(event) {
     if (this.movePointerId !== "mouse") return;
     event.preventDefault();
     this.movePointerId = null;
+    this.clearMoveTarget();
   }
 
   startTouchMove(event, canvas) {
     if (!this.enabled || this.movePointerId !== null || event.touches.length === 0) return;
     event.preventDefault();
     this.movePointerId = "touch";
-    this.moveTargetX = canvasPointFromTouch(event.touches[0], canvas).x;
+    this.setMoveTarget(canvasPointFromTouch(event.touches[0], canvas));
   }
 
   updateTouchMove(event, canvas) {
     if (!this.enabled || this.movePointerId !== "touch" || event.touches.length === 0) return;
     event.preventDefault();
-    this.moveTargetX = canvasPointFromTouch(event.touches[0], canvas).x;
+    this.setMoveTarget(canvasPointFromTouch(event.touches[0], canvas));
   }
 
   endTouchMove(event) {
     if (this.movePointerId !== "touch") return;
     event.preventDefault();
     this.movePointerId = null;
+    this.clearMoveTarget();
+  }
+
+  setMoveTarget(point) {
+    this.moveTargetX = point.x;
+    this.moveTargetY = point.y;
+  }
+
+  clearMoveTarget() {
+    this.moveTargetX = null;
+    this.moveTargetY = null;
   }
 }
 
