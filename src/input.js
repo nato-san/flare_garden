@@ -8,6 +8,7 @@ export class InputController {
     this.movePointerId = null;
     this.moveTargetX = null;
     this.moveTargetY = null;
+    this.waterPulseTimer = 0;
   }
 
   bind(canvas) {
@@ -31,6 +32,7 @@ export class InputController {
     canvas.addEventListener("touchmove", (event) => this.updateTouchMove(event, canvas), { passive: false });
     canvas.addEventListener("touchend", (event) => this.endTouchMove(event), { passive: false });
     canvas.addEventListener("touchcancel", (event) => this.endTouchMove(event), { passive: false });
+    canvas.addEventListener("dblclick", (event) => this.pulseWater(event));
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
     document.querySelectorAll("[data-action]").forEach((button) => {
@@ -62,15 +64,24 @@ export class InputController {
     this.movePointerId = null;
     this.moveTargetX = null;
     this.moveTargetY = null;
+    window.clearTimeout(this.waterPulseTimer);
+    this.waterPulseTimer = 0;
     this.heldPointers.clear();
     document.querySelectorAll("[data-action]").forEach((button) => button.classList.remove("is-held"));
   }
 
   handleKey(event, isDown) {
-    if (["ArrowLeft", "ArrowRight", "Space", "KeyA", "KeyD"].includes(event.code)) {
+    const key = event.key?.toLowerCase();
+    const isW = event.code === "KeyW" || key === "w";
+    if (["ArrowLeft", "ArrowRight", "Space", "KeyA", "KeyD"].includes(event.code) || isW) {
       event.preventDefault();
     }
     if (!this.enabled) return;
+
+    if (isW) {
+      if (isDown) this.pulseWater(event);
+      return;
+    }
 
     if ((event.code === "ArrowLeft" || event.code === "KeyA") && isDown) this.clearMoveTarget();
     if ((event.code === "ArrowRight" || event.code === "KeyD") && isDown) this.clearMoveTarget();
@@ -176,6 +187,19 @@ export class InputController {
   clearMoveTarget() {
     this.moveTargetX = null;
     this.moveTargetY = null;
+  }
+
+  pulseWater(event) {
+    event.preventDefault();
+    if (!this.enabled) return;
+
+    this.water = true;
+    window.clearTimeout(this.waterPulseTimer);
+    this.waterPulseTimer = window.setTimeout(() => {
+      const waterButtonHeld = [...this.heldPointers.values()].includes("water");
+      if (!waterButtonHeld) this.water = false;
+      this.waterPulseTimer = 0;
+    }, 340);
   }
 }
 
