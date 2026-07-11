@@ -919,19 +919,22 @@ export class Game {
       `no flower total ${this.metrics.noFlowerVisibleTime.toFixed(1)}s`,
       `no flower max ${this.metrics.noFlowerVisibleMax.toFixed(1)}s`,
     ];
-    const x = 300;
-    const y = CONFIG.canvasHeight - 300;
+    const lineHeight = 17;
+    const width = 276;
+    const height = lines.length * lineHeight + 18;
+    const x = CONFIG.canvasWidth - width - 16;
+    const y = 92;
 
     ctx.save();
-    ctx.fillStyle = "rgba(64, 49, 34, 0.72)";
+    ctx.fillStyle = "rgba(64, 49, 34, 0.58)";
     ctx.beginPath();
-    ctx.roundRect(x, y, 300, 284, 8);
+    ctx.roundRect(x, y, width, height, 8);
     ctx.fill();
     ctx.fillStyle = "#fff8df";
-    ctx.font = "700 17px sans-serif";
+    ctx.font = "700 14px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    lines.forEach((line, index) => ctx.fillText(line, x + 14, y + 12 + index * 20));
+    lines.forEach((line, index) => ctx.fillText(line, x + 12, y + 10 + index * lineHeight));
     ctx.restore();
   }
 }

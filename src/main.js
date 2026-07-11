@@ -71,6 +71,10 @@ function applyDebugQuery() {
   if (params.get("hitboxes") === "1") {
     CONFIG.debug.showHitboxes = true;
   }
+  if (params.get("metrics") === "1") {
+    CONFIG.debug.enabled = true;
+    CONFIG.debug.showMetrics = true;
+  }
 }
 
 function installCanvasFallbacks() {

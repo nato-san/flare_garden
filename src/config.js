@@ -99,7 +99,7 @@ export const CONFIG = {
   debug: {
     enabled: false,
     showHitboxes: false,
-    showMetrics: true,
+    showMetrics: false,
   },
   goalX: 12100,
   assetManifestUrl: "./src/asset_manifest.js",
