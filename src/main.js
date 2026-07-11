@@ -38,7 +38,7 @@ const ui = {
 };
 
 const game = new Game(canvas, input, ui);
-input.bind(canvas, () => game.cameraX);
+input.bind(canvas, () => game.cameraX, () => ({ x: game.player.screenX, y: game.player.y }));
 ui.restartButton.addEventListener("click", () => game.showModeSelect());
 ui.refillButton.addEventListener("click", () => game.tryRefill("normal"));
 ui.journeyButton.addEventListener("click", () => game.beginCountdown());

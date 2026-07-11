@@ -58,8 +58,10 @@
 
       <div class="touch-controls" id="touchControls" aria-label="操作ボタン">
         <div class="move-controls">
-          <button class="control-button" type="button" data-action="left" aria-label="左へ移動">‹</button>
-          <button class="control-button" type="button" data-action="right" aria-label="右へ移動">›</button>
+          <button class="control-button control-button--up" type="button" data-action="up" aria-label="上へ移動">⌃</button>
+          <button class="control-button control-button--left" type="button" data-action="left" aria-label="左へ移動">‹</button>
+          <button class="control-button control-button--right" type="button" data-action="right" aria-label="右へ移動">›</button>
+          <button class="control-button control-button--down" type="button" data-action="down" aria-label="下へ移動">⌄</button>
         </div>
         <div class="right-controls">
           <button class="refill-button" id="refillButton" type="button" aria-label="水を補充">
@@ -99,8 +101,8 @@
             </article>
           </div>
           <div class="mode-howto">
-            <span>キャラをドラッグして移動</span>
-            <span>左右ボタンでも移動</span>
+            <span>上下左右ボタンで移動</span>
+            <span>キャラの近くを触っても移動</span>
             <span>水ボタンで花を咲かせる</span>
           </div>
           <button class="journey-button" id="journeyButton" type="button">旅をはじめる</button>

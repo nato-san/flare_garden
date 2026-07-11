@@ -30,6 +30,9 @@ export class Player {
     let direction = 0;
     if (input.left) direction -= 1;
     if (input.right) direction += 1;
+    let verticalDirection = 0;
+    if (input.up) verticalDirection -= 1;
+    if (input.down) verticalDirection += 1;
     if (input.moveTargetWorldX !== null) {
       const delta = input.moveTargetWorldX - this.worldX;
       if (Math.abs(delta) > CONFIG.player.dragDeadZone) direction = Math.sign(delta);
@@ -52,6 +55,7 @@ export class Player {
       }
     } else {
       this.worldX += direction * CONFIG.player.moveSpeed * dt;
+      this.y += verticalDirection * CONFIG.player.verticalMoveSpeed * dt;
     }
     this.worldX = clamp(this.worldX, CONFIG.player.minWorldX, CONFIG.player.maxWorldX);
     this.y = clamp(this.y, CONFIG.player.minY, CONFIG.player.maxY);
