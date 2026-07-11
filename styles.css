@@ -394,6 +394,7 @@ canvas {
 
 .orientation-panel {
   inset: 0;
+  z-index: 12;
   padding: 28px;
   background: linear-gradient(#bfeeff, #fbe6b3);
   display: none;
@@ -565,7 +566,7 @@ canvas {
   }
 }
 
-@media (orientation: portrait) and (pointer: coarse) {
+@media (orientation: portrait) {
   .orientation-panel {
     display: grid;
   }

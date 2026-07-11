@@ -1,6 +1,8 @@
 import { Game } from "./game.js";
 import { InputController } from "./input.js";
 
+installCanvasFallbacks();
+
 const canvas = document.getElementById("gameCanvas");
 const input = new InputController();
 
@@ -26,7 +28,7 @@ const ui = {
   restartButton: document.getElementById("restartButton"),
 };
 
-input.bind();
+input.bind(canvas);
 
 const game = new Game(canvas, input, ui);
 ui.restartButton.addEventListener("click", () => game.showModeSelect());
@@ -37,3 +39,26 @@ ui.modeButtons.forEach((button) => {
 });
 
 game.start();
+
+function installCanvasFallbacks() {
+  const prototype = window.CanvasRenderingContext2D?.prototype;
+  if (!prototype || prototype.roundRect) return;
+
+  prototype.roundRect = function roundRect(x, y, width, height, radius = 0) {
+    const radii = Array.isArray(radius) ? radius : [radius, radius, radius, radius];
+    const [topLeft, topRight, bottomRight, bottomLeft] = radii.map((value) =>
+      Math.max(0, Math.min(Number(value) || 0, Math.abs(width) / 2, Math.abs(height) / 2)),
+    );
+
+    this.moveTo(x + topLeft, y);
+    this.lineTo(x + width - topRight, y);
+    this.quadraticCurveTo(x + width, y, x + width, y + topRight);
+    this.lineTo(x + width, y + height - bottomRight);
+    this.quadraticCurveTo(x + width, y + height, x + width - bottomRight, y + height);
+    this.lineTo(x + bottomLeft, y + height);
+    this.quadraticCurveTo(x, y + height, x, y + height - bottomLeft);
+    this.lineTo(x, y + topLeft);
+    this.quadraticCurveTo(x, y, x + topLeft, y);
+    return this;
+  };
+}

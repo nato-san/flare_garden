@@ -25,11 +25,22 @@ export class Player {
     let direction = 0;
     if (input.left) direction -= 1;
     if (input.right) direction += 1;
+    if (input.moveTargetX !== null) {
+      const delta = input.moveTargetX - this.screenX;
+      if (Math.abs(delta) > CONFIG.player.dragDeadZone) direction = Math.sign(delta);
+      else direction = 0;
+    }
 
     if (direction < 0) this.facing = "left";
     if (direction > 0) this.facing = "right";
 
-    this.screenX += direction * CONFIG.player.moveSpeed * dt;
+    if (input.moveTargetX !== null) {
+      const maxStep = CONFIG.player.dragMoveSpeed * dt;
+      const delta = input.moveTargetX - this.screenX;
+      this.screenX += clamp(delta, -maxStep, maxStep);
+    } else {
+      this.screenX += direction * CONFIG.player.moveSpeed * dt;
+    }
     this.screenX = clamp(this.screenX, CONFIG.player.minScreenX, CONFIG.player.maxScreenX);
   }
 

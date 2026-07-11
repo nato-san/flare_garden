@@ -9,6 +9,8 @@ export const CONFIG = {
     width: 120,
     height: 120,
     moveSpeed: 340,
+    dragMoveSpeed: 620,
+    dragDeadZone: 12,
     minScreenX: 120,
     maxScreenX: 900,
     startScreenX: 220,

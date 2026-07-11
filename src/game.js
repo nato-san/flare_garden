@@ -41,6 +41,7 @@ export class Game {
     this.autoRefillArmed = true;
     this.audioContext = null;
     this.animationFrame = 0;
+    this.runtimeErrorShown = false;
   }
 
   async start() {
@@ -119,8 +120,16 @@ export class Game {
     const dt = Math.min(0.033, (time - this.lastTime) / 1000 || 0);
     this.lastTime = time;
 
-    this.update(dt);
-    this.draw();
+    try {
+      this.update(dt);
+      this.draw();
+    } catch (error) {
+      console.error("Flare Garden runtime error", error);
+      if (!this.runtimeErrorShown) {
+        this.runtimeErrorShown = true;
+        this.showToast("表示エラーを復帰しました");
+      }
+    }
 
     this.animationFrame = requestAnimationFrame((nextTime) => this.loop(nextTime));
   }
