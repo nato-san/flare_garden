@@ -15,7 +15,10 @@ const ui = {
   refillButton: document.getElementById("refillButton"),
   waterButton: document.querySelector("[data-action='water']"),
   toast: document.getElementById("toast"),
+  countdown: document.getElementById("countdown"),
   modePanel: document.getElementById("modePanel"),
+  journeyButton: document.getElementById("journeyButton"),
+  modeButtons: [...document.querySelectorAll("[data-mode]")],
   goalPanel: document.getElementById("goalPanel"),
   finalScore: document.getElementById("finalScore"),
   finalWater: document.getElementById("finalWater"),
@@ -28,8 +31,9 @@ input.bind();
 const game = new Game(canvas, input, ui);
 ui.restartButton.addEventListener("click", () => game.showModeSelect());
 ui.refillButton.addEventListener("click", () => game.tryRefill("normal"));
-document.querySelectorAll("[data-mode]").forEach((button) => {
-  button.addEventListener("click", () => game.startRun(button.dataset.mode));
+ui.journeyButton.addEventListener("click", () => game.beginCountdown());
+ui.modeButtons.forEach((button) => {
+  button.addEventListener("click", () => game.selectMode(button.dataset.mode));
 });
 
 game.start();

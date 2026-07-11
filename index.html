@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Flare Garden" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Flare Garden Prototype Step2.5</title>
+    <title>Flare Garden Prototype Step2.6</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -62,6 +62,7 @@
       </div>
 
       <div class="toast" id="toast" hidden></div>
+      <div class="countdown" id="countdown" hidden>3</div>
 
       <section class="goal-panel" id="goalPanel" aria-live="polite" hidden>
         <h1>Flare Gardenに到着！</h1>
@@ -73,19 +74,25 @@
 
       <section class="mode-panel" id="modePanel" aria-live="polite">
         <div class="mode-card">
-          <h1>水の補充方法を選んでね</h1>
+          <h1>Flare Garden</h1>
+          <p class="mode-lead">花を咲かせながら、Flare Gardenを目指そう</p>
           <div class="mode-options">
             <article>
               <h2>AUTO</h2>
               <p>水が0になったら、100ptで自動補充します。</p>
-              <button class="mode-button" type="button" data-mode="auto">AUTOではじめる</button>
+              <button class="mode-button" type="button" data-mode="auto">AUTO</button>
             </article>
             <article>
               <h2>NORMAL</h2>
               <p>好きなタイミングで、100ptを使って補充します。</p>
-              <button class="mode-button" type="button" data-mode="normal">NORMALではじめる</button>
+              <button class="mode-button is-selected" type="button" data-mode="normal">NORMAL</button>
             </article>
           </div>
+          <div class="mode-howto">
+            <span>左右ボタンで移動</span>
+            <span>水ボタンで花を咲かせる</span>
+          </div>
+          <button class="journey-button" id="journeyButton" type="button">旅をはじめる</button>
         </div>
       </section>
     </main>

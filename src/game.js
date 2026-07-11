@@ -6,6 +6,7 @@ import { Flower } from "./entities/flower.js";
 
 const STATE = {
   ready: "ready",
+  countdown: "countdown",
   playing: "playing",
   arrived: "arrived",
 };
@@ -28,8 +29,11 @@ export class Game {
     this.state = STATE.ready;
     this.currentWater = CONFIG.wateringCan.initialWater;
     this.refillMode = "normal";
+    this.selectedMode = "normal";
     this.refillCount = 0;
     this.totalWaterUsed = 0;
+    this.countdownIndex = 0;
+    this.countdownTimer = 0;
     this.emptyFeedbackCooldown = 0;
     this.toastTimer = 0;
     this.refillFlashTimer = 0;
@@ -51,14 +55,33 @@ export class Game {
     this.input.setEnabled(false);
     this.input.clear();
     this.ui.modePanel.hidden = false;
+    this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
     this.ui.refillButton.hidden = true;
-    this.resetStateValues(this.refillMode);
+    this.resetStateValues(this.selectedMode);
+    this.updateModeButtons();
     this.updateHud();
   }
 
-  startRun(mode) {
-    this.reset(mode);
+  selectMode(mode) {
+    this.selectedMode = mode;
+    this.refillMode = mode;
+    this.updateModeButtons();
+    this.updateHud();
+  }
+
+  beginCountdown() {
+    this.resetStateValues(this.selectedMode);
+    this.state = STATE.countdown;
+    this.input.setEnabled(false);
+    this.ui.modePanel.hidden = true;
+    this.ui.goalPanel.hidden = true;
+    this.ui.refillButton.hidden = true;
+    this.countdownIndex = 0;
+    this.countdownTimer = 0;
+    this.ui.countdown.textContent = "3";
+    this.ui.countdown.hidden = false;
+    this.updateHud();
   }
 
   reset(mode = this.refillMode) {
@@ -66,6 +89,7 @@ export class Game {
     this.state = STATE.playing;
     this.input.setEnabled(true);
     this.ui.modePanel.hidden = true;
+    this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
     this.updateHud();
   }
@@ -75,6 +99,7 @@ export class Game {
     this.score = 0;
     this.currentWater = CONFIG.wateringCan.initialWater;
     this.refillMode = mode;
+    this.selectedMode = mode;
     this.refillCount = 0;
     this.totalWaterUsed = 0;
     this.waterCooldown = 0;
@@ -107,6 +132,10 @@ export class Game {
     this.refillFlashTimer = Math.max(0, this.refillFlashTimer - dt * 1000);
     this.updateToast(dt);
 
+    if (this.state === STATE.countdown) {
+      this.updateCountdown(dt);
+    }
+
     if (active) {
       this.cameraX += CONFIG.scrollSpeed * dt;
       this.cameraX = Math.min(this.cameraX, CONFIG.goalX);
@@ -118,6 +147,21 @@ export class Game {
     this.flowers.forEach((flower) => flower.update(dt));
     this.updateFloaters(dt);
     this.updateHud();
+  }
+
+  updateCountdown(dt) {
+    const labels = ["3", "2", "1", "START!"];
+    this.countdownTimer += dt * 1000;
+    if (this.countdownTimer < 650) return;
+    this.countdownTimer = 0;
+    this.countdownIndex += 1;
+    if (this.countdownIndex >= labels.length) {
+      this.ui.countdown.hidden = true;
+      this.state = STATE.playing;
+      this.input.setEnabled(true);
+      return;
+    }
+    this.ui.countdown.textContent = labels[this.countdownIndex];
   }
 
   handleWatering(dt) {
@@ -170,8 +214,8 @@ export class Game {
       x: nozzle.x,
       y: nozzle.y,
       worldX: nozzle.x + this.cameraX,
-      vx: dir * CONFIG.water.speed,
-      vy: CONFIG.water.upwardSpeed,
+      vx: dir * CONFIG.water.horizontalSpeed,
+      vy: CONFIG.water.initialVerticalSpeed,
       width: CONFIG.water.width,
       height: CONFIG.water.height,
       used: false,
@@ -182,16 +226,21 @@ export class Game {
     this.waterDrops = this.waterDrops.filter((drop) => {
       drop.worldX += drop.vx * dt;
       drop.x = drop.worldX - this.cameraX;
-      drop.vy += CONFIG.gravity * dt;
+      drop.vy += CONFIG.water.gravity * dt;
       drop.y += drop.vy * dt;
 
       if (!drop.used) {
         for (const flower of this.flowers) {
           if (flower.isBloomed) continue;
-          if (rectsOverlap(this.dropBounds(drop), flower.getBounds(this.cameraX))) {
+          if (pointInRect(drop.x, drop.y, flower.getHitbox(this.cameraX))) {
             drop.used = true;
             const gained = flower.water();
-            if (gained > 0) this.addScore(gained, flower.worldX - this.cameraX, flower.y - flower.height);
+            if (gained > 0) {
+              this.addScore(gained, flower.worldX - this.cameraX, flower.y - flower.height);
+              this.playFeedbackSound("success");
+            } else {
+              this.playFeedbackSound("hit");
+            }
             break;
           }
         }
@@ -321,11 +370,35 @@ export class Game {
     this.ui.refillButton.disabled = !showRefill;
   }
 
+  updateModeButtons() {
+    this.ui.modeButtons.forEach((button) => {
+      button.classList.toggle("is-selected", button.dataset.mode === this.selectedMode);
+    });
+  }
+
   getCurrentArea() {
     return (
       stage1Layout.areas.find((area) => this.cameraX >= area.startX && this.cameraX < area.endX) ||
       stage1Layout.areas[stage1Layout.areas.length - 1]
     );
+  }
+
+  getAreaBlend() {
+    const current = this.getCurrentArea();
+    const index = stage1Layout.areas.indexOf(current);
+    const distance = CONFIG.stage.transitionDistance;
+    const half = distance / 2;
+    const next = stage1Layout.areas[index + 1];
+    if (next && this.cameraX > current.endX - half) {
+      return { from: current, to: next, t: clamp((this.cameraX - (current.endX - half)) / distance, 0, 1) };
+    }
+
+    const previous = stage1Layout.areas[index - 1];
+    if (previous && this.cameraX < current.startX + half) {
+      return { from: previous, to: current, t: clamp((this.cameraX - (current.startX - half)) / distance, 0, 1) };
+    }
+
+    return { from: current, to: current, t: 0 };
   }
 
   showToast(message) {
@@ -372,14 +445,14 @@ export class Game {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       oscillator.type = type === "success" ? "sine" : "triangle";
-      oscillator.frequency.value = type === "success" ? 720 : 180;
+      oscillator.frequency.value = type === "success" ? 720 : type === "hit" ? 460 : 180;
       gain.gain.setValueAtTime(0.0001, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.035, context.currentTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.16);
+      gain.gain.exponentialRampToValueAtTime(type === "hit" ? 0.018 : 0.035, context.currentTime + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (type === "hit" ? 0.08 : 0.16));
       oscillator.connect(gain);
       gain.connect(context.destination);
       oscillator.start();
-      oscillator.stop(context.currentTime + 0.18);
+      oscillator.stop(context.currentTime + (type === "hit" ? 0.09 : 0.18));
     } catch {
       // Visual feedback remains the primary signal if audio is unavailable.
     }
@@ -396,10 +469,18 @@ export class Game {
     this.drawWaterDrops(ctx);
     this.player.draw(ctx, this.assets);
     this.drawFloaters(ctx);
+    if (CONFIG.debug.showHitboxes) this.drawWaterDebug(ctx);
   }
 
   drawSky(ctx) {
-    const area = this.getCurrentArea().id;
+    const blend = this.getAreaBlend();
+    this.drawSkyForArea(ctx, blend.from.id, 1);
+    if (blend.to.id !== blend.from.id && blend.t > 0) this.drawSkyForArea(ctx, blend.to.id, blend.t);
+  }
+
+  drawSkyForArea(ctx, area, alpha = 1) {
+    ctx.save();
+    ctx.globalAlpha *= alpha;
     const gradient = ctx.createLinearGradient(0, 0, 0, CONFIG.canvasHeight);
     if (area === "forest") {
       gradient.addColorStop(0, "#b9e5f4");
@@ -421,6 +502,7 @@ export class Game {
     this.drawCloud(ctx, 720 - (this.cameraX * 0.1) % 1560, 86, 0.86);
     this.drawCloud(ctx, 1240 - (this.cameraX * 0.14) % 1560, 178, 1);
     if (area === "rainbow-hill") this.drawRainbow(ctx);
+    ctx.restore();
   }
 
   drawRainbow(ctx) {
@@ -454,7 +536,14 @@ export class Game {
   }
 
   drawMidground(ctx) {
-    const area = this.getCurrentArea().id;
+    const blend = this.getAreaBlend();
+    this.drawMidgroundForArea(ctx, blend.from.id, 1);
+    if (blend.to.id !== blend.from.id && blend.t > 0) this.drawMidgroundForArea(ctx, blend.to.id, blend.t);
+  }
+
+  drawMidgroundForArea(ctx, area, alpha = 1) {
+    ctx.save();
+    ctx.globalAlpha *= alpha;
     if (area === "forest") {
       this.drawHillBand(ctx, 0.28, 390, "#93c58c", "#76b077", 32);
       this.drawHillBand(ctx, 0.48, 480, "#c6b87c", "#b99d68", 58);
@@ -475,6 +564,7 @@ export class Game {
       const y = area === "forest" ? 388 + (worldX % 4) * 14 : 420 + (worldX % 3) * 18;
       this.drawTree(ctx, wrappedX, y, area);
     }
+    ctx.restore();
   }
 
   drawPaperFlowers(ctx) {
@@ -524,7 +614,7 @@ export class Game {
   }
 
   drawForeground(ctx) {
-    const area = this.getCurrentArea().id;
+    const area = this.getAreaBlend().to.id;
     ctx.fillStyle = area === "forest" ? "#b99065" : "#d7a46f";
     ctx.beginPath();
     ctx.moveTo(0, CONFIG.groundY);
@@ -626,6 +716,17 @@ export class Game {
     }
   }
 
+  drawWaterDebug(ctx) {
+    ctx.save();
+    ctx.fillStyle = "rgba(40, 164, 207, 0.9)";
+    for (const drop of this.waterDrops) {
+      ctx.beginPath();
+      ctx.arc(drop.x, drop.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   drawFloaters(ctx) {
     for (const floater of this.floaters) {
       const alpha = 1 - floater.age / floater.duration;
@@ -641,8 +742,8 @@ export class Game {
   }
 }
 
-function rectsOverlap(a, b) {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+function pointInRect(x, y, rect) {
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 }
 
 function clamp(value, min, max) {
