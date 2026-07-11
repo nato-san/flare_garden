@@ -600,6 +600,87 @@ canvas {
   }
 }
 
+@media (orientation: landscape) and (max-height: 520px) {
+  .mode-panel {
+    padding:
+      calc(8px + var(--safe-top))
+      calc(12px + var(--safe-right))
+      calc(8px + var(--safe-bottom))
+      calc(12px + var(--safe-left));
+  }
+
+  .mode-card {
+    width: min(820px, 100%);
+    max-height: calc(100dvh - 16px - var(--safe-top) - var(--safe-bottom));
+    padding: clamp(10px, 2.2vh, 16px) clamp(12px, 2.8vw, 20px);
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  }
+
+  .mode-card h1 {
+    margin-bottom: 2px;
+    font-size: clamp(24px, 7vh, 34px);
+    line-height: 1.05;
+  }
+
+  .mode-lead {
+    margin-bottom: clamp(6px, 1.8vh, 10px);
+    font-size: clamp(12px, 3.2vh, 16px);
+    line-height: 1.25;
+  }
+
+  .mode-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(8px, 2vw, 14px);
+    min-height: 0;
+  }
+
+  .mode-options article {
+    gap: clamp(4px, 1.2vh, 8px);
+    padding: clamp(8px, 2vh, 12px);
+  }
+
+  .mode-options h2 {
+    font-size: clamp(22px, 6vh, 30px);
+    line-height: 1.05;
+  }
+
+  .mode-options p {
+    min-height: 0;
+    font-size: clamp(11px, 3vh, 15px);
+    line-height: 1.25;
+  }
+
+  .mode-button {
+    min-height: clamp(34px, 8.5vh, 42px);
+    padding: 6px 12px;
+    font-size: clamp(15px, 4vh, 20px);
+    box-shadow: 0 4px 0 #c95c4a;
+  }
+
+  .mode-button.is-selected {
+    box-shadow: 0 4px 0 #459aaa;
+  }
+
+  .mode-howto {
+    gap: 6px;
+    margin-top: clamp(6px, 1.6vh, 10px);
+    font-size: clamp(10px, 2.6vh, 13px);
+  }
+
+  .mode-howto span {
+    padding: 4px 8px;
+  }
+
+  .journey-button {
+    min-height: clamp(38px, 9.5vh, 46px);
+    margin-top: clamp(6px, 1.8vh, 10px);
+    padding: 8px 18px;
+    font-size: clamp(17px, 4.5vh, 22px);
+    box-shadow: 0 5px 0 #c95c4a;
+  }
+}
+
 @media (pointer: fine) and (min-width: 900px) {
   .touch-controls {
     opacity: 0.78;
