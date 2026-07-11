@@ -46,6 +46,37 @@ export const CONFIG = {
     refillAmount: 10,
     refillCost: 100,
   },
+  timer: {
+    enabled: true,
+    timeLimitSeconds: 180,
+    warningThresholdSeconds: 30,
+  },
+  frog: {
+    detectionRange: 700,
+    moveSpeed: 120,
+    waterSuctionRange: 260,
+    requiredWaterForFull: 10,
+    rewards: {
+      none: 0.4,
+      water: 0.25,
+      points: 0.2,
+      mediumFlower: 0.1,
+      largeFlower: 0.05,
+    },
+    waterRewardAmount: 5,
+    pointRewardAmount: 50,
+    flowerSpawnOffsetX: 350,
+  },
+  bird: {
+    warningDurationMs: 1000,
+    speed: 380,
+    collisionWaterLoss: 5,
+    invincibilityMs: 1200,
+  },
+  flowerDensity: {
+    minimumVisibleTarget: 3,
+    denseVisibleTarget: 8,
+  },
   ui: {
     lowWaterThreshold: 10,
     refillAnimationMs: 700,

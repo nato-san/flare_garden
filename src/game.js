@@ -3,12 +3,14 @@ import { stage1Layout } from "./stage1_layout.js";
 import { AssetStore } from "./assets.js";
 import { Player } from "./entities/player.js";
 import { Flower } from "./entities/flower.js";
+import { Frog, Bird } from "./entities/residents.js";
 
 const STATE = {
   ready: "ready",
   countdown: "countdown",
   playing: "playing",
   arrived: "arrived",
+  sunset: "sunset",
 };
 
 export class Game {
@@ -27,6 +29,8 @@ export class Game {
     this.floaters = [];
     this.particles = [];
     this.flowers = [];
+    this.frogs = [];
+    this.birds = [];
     this.state = STATE.ready;
     this.currentWater = CONFIG.wateringCan.initialWater;
     this.refillMode = "normal";
@@ -44,6 +48,9 @@ export class Game {
     this.animationFrame = 0;
     this.runtimeErrorShown = false;
     this.elapsedTime = 0;
+    this.remainingTime = CONFIG.timer.timeLimitSeconds;
+    this.finishReason = null;
+    this.birdInvincibleTimer = 0;
     this.lastBloomElapsed = -999;
     this.chainBloomCount = 0;
     this.metrics = this.createMetrics();
@@ -63,6 +70,7 @@ export class Game {
     this.ui.modePanel.hidden = false;
     this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
+    this.ui.gameStatusLabel.textContent = "Flare Gardenに到着！";
     this.ui.refillButton.hidden = true;
     this.resetStateValues(this.selectedMode);
     this.updateModeButtons();
@@ -82,6 +90,7 @@ export class Game {
     this.input.setEnabled(false);
     this.ui.modePanel.hidden = true;
     this.ui.goalPanel.hidden = true;
+    this.ui.gameStatusLabel.textContent = "Flare Gardenに到着！";
     this.ui.refillButton.hidden = true;
     this.countdownIndex = 0;
     this.countdownTimer = 0;
@@ -97,6 +106,7 @@ export class Game {
     this.ui.modePanel.hidden = true;
     this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
+    this.ui.gameStatusLabel.textContent = "Flare Gardenに到着！";
     this.updateHud();
   }
 
@@ -112,12 +122,17 @@ export class Game {
     this.waterDrops = [];
     this.floaters = [];
     this.particles = [];
+    this.frogs = stage1Layout.frogs.map((frog) => new Frog(frog));
+    this.birds = stage1Layout.birds.map((bird) => new Bird(bird));
     this.emptyFeedbackCooldown = 0;
     this.toastTimer = 0;
     this.refillFlashTimer = 0;
+    this.birdInvincibleTimer = 0;
     this.autoRefillArmed = true;
     this.flowers = stage1Layout.flowers.map((flower) => new Flower(flower));
     this.elapsedTime = 0;
+    this.remainingTime = CONFIG.timer.timeLimitSeconds;
+    this.finishReason = null;
     this.lastBloomElapsed = -999;
     this.chainBloomCount = 0;
     this.metrics = this.createMetrics();
@@ -157,19 +172,31 @@ export class Game {
 
     if (active) {
       this.elapsedTime += dt;
-      this.metrics.forwardDistance += movement.forward;
-      this.metrics.backDistance += movement.back;
-      this.updateCamera(dt);
-      this.handleWatering(dt);
-      this.updateFlowerVisibilityMetrics(dt);
-      this.checkGoal();
+      this.updateTimer(dt);
+      if (!this.finishReason) {
+        this.metrics.forwardDistance += movement.forward;
+        this.metrics.backDistance += movement.back;
+        this.updateCamera(dt);
+        this.updateResidents(dt);
+        this.handleWatering(dt);
+        this.updateFlowerVisibilityMetrics(dt);
+        this.checkGoal();
+      }
     }
 
-    this.updateDrops(dt);
+    if (active && !this.finishReason) this.updateDrops(dt);
     this.flowers.forEach((flower) => flower.update(dt));
     this.updateParticles(dt);
     this.updateFloaters(dt);
     this.updateHud();
+  }
+
+  updateTimer(dt) {
+    if (!CONFIG.timer.enabled || this.finishReason) return;
+    this.remainingTime = Math.max(0, this.remainingTime - dt);
+    if (this.remainingTime <= 0) {
+      this.finishJourney("sunset");
+    }
   }
 
   updateCountdown(dt) {
@@ -253,6 +280,18 @@ export class Game {
       drop.y += drop.vy * dt;
 
       if (!drop.used) {
+        for (const frog of this.frogs) {
+          if (frog.canAbsorb(drop)) {
+            frog.absorb(drop);
+            this.metrics.frogWaterAbsorbed += 1;
+            this.spawnHitParticles(frog.worldX - this.cameraX, frog.y - 48);
+            this.playFeedbackSound("hit");
+            break;
+          }
+        }
+      }
+
+      if (!drop.used) {
         for (const flower of this.flowers) {
           if (flower.isBloomed) continue;
           if (pointInRect(drop.x, drop.y, flower.getHitbox(this.cameraX))) {
@@ -282,6 +321,72 @@ export class Game {
     });
   }
 
+  updateResidents(dt) {
+    this.birdInvincibleTimer = Math.max(0, this.birdInvincibleTimer - dt * 1000);
+    for (const frog of this.frogs) {
+      const wasFull = frog.state === "full";
+      frog.update(dt, this.player);
+      if (!wasFull && frog.state === "full" && !frog.rewardClaimed) {
+        this.resolveFrogReward(frog);
+      }
+    }
+    for (const bird of this.birds) {
+      bird.update(dt, this);
+    }
+  }
+
+  resolveFrogReward(frog) {
+    frog.rewardClaimed = true;
+    this.metrics.frogsFed += 1;
+    const reward = chooseWeighted(CONFIG.frog.rewards);
+    frog.reward = reward;
+    this.metrics.frogRewardLog.push(`${frog.id}:${reward}`);
+    if (reward !== "none") this.metrics.frogRewards += 1;
+
+    if (reward === "water") {
+      this.currentWater = Math.min(CONFIG.wateringCan.maxWater, this.currentWater + CONFIG.frog.waterRewardAmount);
+      this.showToast(`ゲコッ♪ お水 +${CONFIG.frog.waterRewardAmount}`);
+    } else if (reward === "points") {
+      this.addScore(CONFIG.frog.pointRewardAmount, frog.worldX - this.cameraX, frog.y - 80);
+      this.showToast(`ゲコッ♪ +${CONFIG.frog.pointRewardAmount}pt`);
+    } else if (reward === "mediumFlower" || reward === "largeFlower") {
+      const type = reward === "mediumFlower" ? "medium" : "large";
+      this.spawnRewardFlower(type);
+      this.showToast(type === "medium" ? "ゲコッ♪ 中花が咲きそう" : "ゲコッ♪ 大花が咲きそう");
+    } else {
+      this.showToast("ゲコッ♪");
+    }
+    this.floaters.push({
+      text: reward === "none" ? "ゲコッ♪" : "ゲコッ♪ +",
+      x: frog.worldX - this.cameraX,
+      y: frog.y - 94,
+      age: 0,
+      duration: 1.1,
+      color: "#5c8d58",
+      vy: -30,
+    });
+  }
+
+  spawnRewardFlower(type) {
+    const direction = this.player.facing === "left" ? -1 : 1;
+    let x = this.player.worldX + CONFIG.frog.flowerSpawnOffsetX * direction;
+    x = clamp(x, CONFIG.player.minWorldX + 300, stage1Layout.goal.x - 420);
+    while (this.flowers.some((flower) => Math.abs(flower.worldX - x) < 72)) {
+      x += 78;
+      if (x > stage1Layout.goal.x - 320) break;
+    }
+    this.flowers.push(
+      new Flower({
+        id: `reward-flower-${this.metrics.frogRewards}-${this.flowers.length}`,
+        type,
+        x,
+        y: type === "large" ? 486 : 500,
+        group: "frog-reward",
+        pattern: "reward",
+      }),
+    );
+  }
+
   dropBounds(drop) {
     return {
       x: drop.x - drop.width / 2,
@@ -309,6 +414,18 @@ export class Game {
       this.autoRefillArmed = true;
       this.tryRefill("auto");
     }
+  }
+
+  handleBirdHit(bird) {
+    if (this.birdInvincibleTimer > 0) return;
+    const loss = Math.min(this.currentWater, CONFIG.bird.collisionWaterLoss);
+    this.currentWater = Math.max(0, this.currentWater - CONFIG.bird.collisionWaterLoss);
+    this.birdInvincibleTimer = CONFIG.bird.invincibilityMs;
+    this.metrics.birdHits += 1;
+    this.bumpWaterGauge();
+    this.showToast(`鳥がジョウロにいたずら！ -${loss}`);
+    this.playFeedbackSound("fail");
+    this.spawnSpillParticles(bird.worldX - this.cameraX, bird.y + 18);
   }
 
   updateFloaters(dt) {
@@ -385,6 +502,12 @@ export class Game {
       noFlowerVisibleMax: 0,
       forwardDistance: 0,
       backDistance: 0,
+      frogsFed: 0,
+      frogRewards: 0,
+      frogWaterAbsorbed: 0,
+      frogRewardLog: [],
+      birdWarnings: 0,
+      birdHits: 0,
     };
   }
 
@@ -416,11 +539,7 @@ export class Game {
   }
 
   updateFlowerVisibilityMetrics(dt) {
-    const hasVisibleTarget = this.flowers.some((flower) => {
-      if (flower.isBloomed) return false;
-      const x = flower.worldX - this.cameraX;
-      return x > -flower.width && x < CONFIG.canvasWidth + flower.width;
-    });
+    const hasVisibleTarget = this.visibleFlowerCounts().total > 0;
 
     if (hasVisibleTarget) {
       this.metrics.noFlowerVisibleCurrent = 0;
@@ -430,6 +549,18 @@ export class Game {
     this.metrics.noFlowerVisibleCurrent += dt;
     this.metrics.noFlowerVisibleTime += dt;
     this.metrics.noFlowerVisibleMax = Math.max(this.metrics.noFlowerVisibleMax, this.metrics.noFlowerVisibleCurrent);
+  }
+
+  visibleFlowerCounts() {
+    const counts = { total: 0, small: 0, medium: 0, large: 0 };
+    for (const flower of this.flowers) {
+      if (flower.isBloomed) continue;
+      const x = flower.worldX - this.cameraX;
+      if (x <= -flower.width || x >= CONFIG.canvasWidth + flower.width) continue;
+      counts.total += 1;
+      counts[flower.type] += 1;
+    }
+    return counts;
   }
 
   spawnHitParticles(x, y) {
@@ -466,6 +597,22 @@ export class Game {
     }
   }
 
+  spawnSpillParticles(x, y) {
+    for (let i = 0; i < 8; i += 1) {
+      const angle = Math.PI * 0.15 + (Math.PI * 0.7 * i) / 7;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * (80 + (i % 3) * 18),
+        vy: Math.sin(angle) * 46 - 70,
+        age: 0,
+        duration: 0.55,
+        radius: 4,
+        color: "#72d9f2",
+      });
+    }
+  }
+
   updateParticles(dt) {
     this.particles = this.particles.filter((particle) => {
       particle.age += dt;
@@ -478,15 +625,43 @@ export class Game {
 
   checkGoal() {
     if (this.player.worldX + this.player.width / 2 >= stage1Layout.goal.x) {
-      this.state = STATE.arrived;
-      this.input.setEnabled(false);
-      this.waterDrops = [];
-      this.ui.finalScore.textContent = `スコア ${this.score}pt`;
-      this.ui.finalWater.textContent = `残り水 ${this.currentWater} / ${CONFIG.wateringCan.maxWater}`;
-      this.ui.finalRefills.textContent = `補充 ${this.refillCount}回`;
-      this.ui.refillButton.hidden = true;
-      this.ui.goalPanel.hidden = false;
+      this.finishJourney("goal");
     }
+  }
+
+  finishJourney(reason) {
+    if (this.finishReason) return;
+    this.finishReason = reason;
+    this.state = reason === "goal" ? STATE.arrived : STATE.sunset;
+    this.input.setEnabled(false);
+    this.input.clear();
+    this.waterDrops = [];
+    this.ui.gameStatusLabel.textContent = reason === "goal" ? "Flare Gardenに到着！" : "夕暮れになりました";
+    this.ui.finalScore.textContent = `スコア ${this.score}pt`;
+    this.ui.finalWater.textContent = `残り水 ${this.currentWater} / ${CONFIG.wateringCan.maxWater}`;
+    this.ui.finalRefills.textContent = `補充 ${this.refillCount}回`;
+    this.ui.finalDetails.innerHTML = this.resultLines(reason)
+      .map((line) => `<p class="result-line">${line}</p>`)
+      .join("");
+    this.ui.refillButton.hidden = true;
+    this.ui.modePanel.hidden = true;
+    this.ui.countdown.hidden = true;
+    this.ui.goalPanel.hidden = false;
+    this.showToast(reason === "goal" ? "到着しました！" : "今日の旅はここまで");
+  }
+
+  resultLines(reason) {
+    return [
+      `ゴール到達: ${reason === "goal" ? "あり" : "なし"}`,
+      `残り時間: ${formatTime(this.remainingTime)}`,
+      `咲かせた花: ${this.metrics.bloomedTotal}本`,
+      `小/中/大: ${this.metrics.bloomedByType.small}/${this.metrics.bloomedByType.medium}/${this.metrics.bloomedByType.large}`,
+      `使用水量: ${this.totalWaterUsed}`,
+      `無駄水量: ${this.metrics.wastedWater}`,
+      `満腹カエル: ${this.metrics.frogsFed}`,
+      `カエル報酬: ${this.metrics.frogRewards}`,
+      `鳥接触: ${this.metrics.birdHits}`,
+    ];
   }
 
   updateHud() {
@@ -500,6 +675,11 @@ export class Game {
     const progress = clamp((this.player.worldX - CONFIG.player.startWorldX) / progressMax, 0, 1);
     this.ui.progressFill.style.width = `${progress * 100}%`;
     this.ui.areaLabel.textContent = areaName(this.getCurrentArea().id);
+    const timeRatio = CONFIG.timer.timeLimitSeconds > 0 ? this.remainingTime / CONFIG.timer.timeLimitSeconds : 1;
+    this.ui.timeLabel.textContent = formatTime(this.remainingTime);
+    this.ui.timeFill.style.width = `${Math.max(0, Math.min(100, timeRatio * 100))}%`;
+    this.ui.timePanel.classList.toggle("is-evening", timeRatio <= 0.6 && timeRatio > 0.2);
+    this.ui.timePanel.classList.toggle("is-warning", timeRatio <= 0.2);
 
     this.ui.waterGauge.classList.toggle("is-low", this.currentWater > 0 && this.currentWater <= CONFIG.ui.lowWaterThreshold);
     this.ui.waterGauge.classList.toggle("is-empty", this.currentWater === 0);
@@ -607,6 +787,8 @@ export class Game {
     this.drawForeground(ctx);
     this.drawGoal(ctx);
     this.flowers.forEach((flower) => flower.draw(ctx, this.cameraX, this.assets));
+    this.frogs.forEach((frog) => frog.draw(ctx, this.cameraX, this.assets));
+    this.birds.forEach((bird) => bird.draw(ctx, this.cameraX, this.assets));
     this.drawWaterDrops(ctx);
     this.player.draw(ctx, this.assets);
     this.drawParticles(ctx);
@@ -645,7 +827,21 @@ export class Game {
     this.drawCloud(ctx, 720 - (this.cameraX * 0.1) % 1560, 86, 0.86);
     this.drawCloud(ctx, 1240 - (this.cameraX * 0.14) % 1560, 178, 1);
     if (area === "rainbow-hill") this.drawRainbow(ctx);
+    this.drawTimeOfDayOverlay(ctx);
     ctx.restore();
+  }
+
+  drawTimeOfDayOverlay(ctx) {
+    const ratio = CONFIG.timer.timeLimitSeconds > 0 ? this.remainingTime / CONFIG.timer.timeLimitSeconds : 1;
+    if (ratio > 0.6) return;
+    const t = ratio > 0.2 ? (0.6 - ratio) / 0.4 : 1;
+    const urgent = ratio <= 0.2 ? (0.2 - ratio) / 0.2 : 0;
+    const gradient = ctx.createLinearGradient(0, 0, 0, CONFIG.canvasHeight);
+    gradient.addColorStop(0, `rgba(255, 191, 132, ${0.12 + t * 0.1 + urgent * 0.08})`);
+    gradient.addColorStop(0.55, `rgba(255, 145, 164, ${0.06 + t * 0.08 + urgent * 0.06})`);
+    gradient.addColorStop(1, `rgba(126, 101, 178, ${urgent * 0.16})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, CONFIG.canvasWidth, CONFIG.canvasHeight);
   }
 
   drawRainbow(ctx) {
@@ -903,19 +1099,27 @@ export class Game {
     const progressMax = Math.max(1, stage1Layout.goal.x - CONFIG.player.startWorldX);
     const progress = clamp((this.player.worldX - CONFIG.player.startWorldX) / progressMax, 0, 1);
     const distanceToGoal = Math.max(0, stage1Layout.goal.x - this.player.worldX);
+    const visibleFlowers = this.visibleFlowerCounts();
     const lines = [
       `time ${this.elapsedTime.toFixed(1)}s`,
+      `left ${formatTime(this.remainingTime)} ${timePhase(this.remainingTime)}`,
       `player world ${this.player.worldX.toFixed(0)}`,
       `player screen ${this.player.screenX.toFixed(0)}`,
       `camera ${this.cameraX.toFixed(0)}`,
       `progress ${(progress * 100).toFixed(1)}%`,
       `goal left ${distanceToGoal.toFixed(0)}`,
+      `goal est ${(distanceToGoal / CONFIG.player.moveSpeed).toFixed(1)}s`,
       `move F/B ${this.metrics.forwardDistance.toFixed(0)}/${this.metrics.backDistance.toFixed(0)}`,
       `bloom ${this.metrics.bloomedTotal}/${this.flowers.length}`,
       `S/M/L ${this.metrics.bloomedByType.small}/${this.metrics.bloomedByType.medium}/${this.metrics.bloomedByType.large}`,
+      `visible ${visibleFlowers.total} S/M/L ${visibleFlowers.small}/${visibleFlowers.medium}/${visibleFlowers.large}`,
       `water used ${this.totalWaterUsed}`,
       `waste ${this.metrics.wastedWater}`,
       `refill ${this.refillCount}`,
+      `frogs ${this.frogs.filter((frog) => frog.state !== "gone").length}/${this.frogs.length}`,
+      `frog full ${this.metrics.frogsFed} suck ${this.metrics.frogWaterAbsorbed}`,
+      `frog rewards ${this.metrics.frogRewardLog.slice(-3).join(",") || "-"}`,
+      `birds warn/hit ${this.metrics.birdWarnings}/${this.metrics.birdHits}`,
       `no flower total ${this.metrics.noFlowerVisibleTime.toFixed(1)}s`,
       `no flower max ${this.metrics.noFlowerVisibleMax.toFixed(1)}s`,
     ];
@@ -945,6 +1149,29 @@ function pointInRect(x, y, rect) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function chooseWeighted(weights) {
+  let roll = Math.random();
+  for (const [key, weight] of Object.entries(weights)) {
+    roll -= weight;
+    if (roll <= 0) return key;
+  }
+  return "none";
+}
+
+function formatTime(seconds) {
+  const safeSeconds = Math.max(0, Math.ceil(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const rest = safeSeconds % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
+
+function timePhase(seconds) {
+  const ratio = CONFIG.timer.timeLimitSeconds > 0 ? seconds / CONFIG.timer.timeLimitSeconds : 1;
+  if (ratio <= 0.2) return "日没直前";
+  if (ratio <= 0.6) return "夕方";
+  return "昼";
 }
 
 function areaName(id) {

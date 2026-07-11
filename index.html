@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Flare Garden" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Flare Garden Prototype Step2.9</title>
+    <title>Flare Garden Prototype Step3.0</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -39,12 +39,20 @@
             <div class="water-gauge__fill" id="waterFill"></div>
           </div>
         </div>
-      </div>
-
-      <div class="progress-panel" id="progressPanel">
-        <span id="areaLabel">はじまりの花畑</span>
-        <div class="progress-track">
-          <div class="progress-fill" id="progressFill"></div>
+        <div class="time-panel" id="timePanel">
+          <div class="time-panel__top">
+            <span>SUNSET</span>
+            <strong id="timeLabel">3:00</strong>
+          </div>
+          <div class="time-track">
+            <div class="time-fill" id="timeFill"></div>
+          </div>
+        </div>
+        <div class="progress-panel" id="progressPanel">
+          <span id="areaLabel">はじまりの花畑</span>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
         </div>
       </div>
 
@@ -66,17 +74,18 @@
       <div class="countdown" id="countdown" hidden>3</div>
 
       <section class="goal-panel" id="goalPanel" aria-live="polite" hidden>
-        <h1>Flare Gardenに到着！</h1>
+        <h1 id="gameStatusLabel">Flare Gardenに到着！</h1>
         <p id="finalScore">スコア 0pt</p>
         <p class="result-line" id="finalWater">残り水 0 / 50</p>
         <p class="result-line" id="finalRefills">補充 0回</p>
-        <button class="restart-button" id="restartButton" type="button">もう一度</button>
+        <div class="result-details" id="finalDetails"></div>
+        <button class="restart-button" id="restartButton" type="button">もう一度旅に出る</button>
       </section>
 
       <section class="mode-panel" id="modePanel" aria-live="polite">
         <div class="mode-card">
           <h1>Flare Garden</h1>
-          <p class="mode-lead">スマートフォンを横向きにして、水の補充設定を選んでからスタートしよう</p>
+          <p class="mode-lead">夕暮れまでにFlare Gardenを目指そう。花を咲かせるほどポイントアップ、いたずら好きな住人にも気をつけてね。</p>
           <div class="mode-options">
             <article>
               <h2>AUTO</h2>

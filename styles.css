@@ -68,8 +68,10 @@ canvas {
   position: absolute;
   left: calc(22px + var(--safe-left));
   top: calc(14px + var(--safe-top));
+  right: calc(22px + var(--safe-right));
   z-index: 4;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 10px;
   pointer-events: none;
@@ -100,7 +102,7 @@ canvas {
 }
 
 .water-gauge {
-  width: clamp(178px, 28vw, 290px);
+  width: clamp(168px, 24vw, 240px);
   padding: 8px 10px 10px;
   border-radius: 8px;
   color: #426a75;
@@ -159,18 +161,38 @@ canvas {
   background: #e8e3da;
 }
 
+.time-panel,
 .progress-panel {
-  position: absolute;
-  right: calc(22px + var(--safe-right));
-  top: calc(14px + var(--safe-top));
-  z-index: 4;
-  width: clamp(180px, 25vw, 300px);
+  width: clamp(154px, 20vw, 220px);
   padding: 8px 10px 10px;
   border-radius: 8px;
   color: #6a4b2f;
   background: rgba(255, 248, 223, 0.88);
   box-shadow: 0 5px 14px rgba(108, 76, 44, 0.14);
   pointer-events: none;
+}
+
+.time-panel {
+  color: #7b5432;
+}
+
+.time-panel.is-evening {
+  color: #a45f4e;
+}
+
+.time-panel.is-warning {
+  color: #9d4d70;
+  animation: sunset-pulse 920ms ease-in-out infinite;
+}
+
+.time-panel__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: clamp(12px, 1.5vw, 15px);
+  font-weight: 900;
 }
 
 .progress-panel span {
@@ -190,12 +212,31 @@ canvas {
   background: rgba(138, 90, 58, 0.15);
 }
 
+.time-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(138, 90, 58, 0.15);
+}
+
 .progress-fill {
   width: 0%;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #e87964, #ffd166, #72d9f2);
   transition: width 180ms ease;
+}
+
+.time-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f5a66c, #ffd166, #72d9f2);
+  transition: width 180ms ease, background 180ms ease;
+}
+
+.time-panel.is-warning .time-fill {
+  background: linear-gradient(90deg, #9d4d70, #e87964, #ffd166);
 }
 
 .touch-controls {
@@ -349,7 +390,10 @@ canvas {
 
 .goal-panel {
   gap: 10px;
-  min-width: min(520px, calc(100vw - 48px));
+  min-width: min(620px, calc(100vw - 48px));
+  max-width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
   padding: 28px 34px 30px;
   border-radius: 8px;
   background: rgba(255, 248, 223, 0.94);
@@ -374,6 +418,22 @@ canvas {
 .goal-panel .result-line {
   margin: 0;
   font-size: clamp(17px, 2.4vw, 24px);
+}
+
+.result-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 12px;
+  width: 100%;
+  margin: 2px 0 8px;
+}
+
+.result-details .result-line {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 232, 203, 0.62);
+  font-size: clamp(12px, 1.8vw, 16px);
+  font-weight: 800;
 }
 
 .restart-button {
@@ -583,6 +643,16 @@ canvas {
   }
 }
 
+@keyframes sunset-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
 @media (orientation: portrait) {
   .orientation-panel {
     display: grid;
@@ -596,6 +666,8 @@ canvas {
 @media (max-width: 740px) {
   .hud {
     gap: 6px;
+    left: calc(10px + var(--safe-left));
+    right: calc(10px + var(--safe-right));
   }
 
   .score {
@@ -610,9 +682,8 @@ canvas {
     width: min(210px, 42vw);
   }
 
+  .time-panel,
   .progress-panel {
-    top: calc(64px + var(--safe-top));
-    right: calc(14px + var(--safe-right));
     width: min(190px, 44vw);
   }
 
@@ -622,6 +693,34 @@ canvas {
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
+  .hud {
+    top: calc(6px + var(--safe-top));
+    gap: 8px;
+  }
+
+  .score {
+    min-width: 86px;
+    padding: 7px 10px;
+    font-size: clamp(16px, 4.4vh, 22px);
+  }
+
+  .mode-chip {
+    min-width: 62px;
+    padding: 7px 8px;
+    font-size: clamp(12px, 3.5vh, 15px);
+  }
+
+  .water-gauge {
+    width: clamp(150px, 21vw, 176px);
+    padding: 7px 8px 9px;
+  }
+
+  .time-panel,
+  .progress-panel {
+    width: clamp(138px, 18vw, 158px);
+    padding: 7px 8px 9px;
+  }
+
   .mode-panel {
     padding:
       calc(8px + var(--safe-top))

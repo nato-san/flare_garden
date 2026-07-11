@@ -15,6 +15,9 @@ const ui = {
   waterGauge: document.getElementById("waterGauge"),
   waterLabel: document.getElementById("waterLabel"),
   waterFill: document.getElementById("waterFill"),
+  timePanel: document.getElementById("timePanel"),
+  timeLabel: document.getElementById("timeLabel"),
+  timeFill: document.getElementById("timeFill"),
   progressFill: document.getElementById("progressFill"),
   areaLabel: document.getElementById("areaLabel"),
   refillButton: document.getElementById("refillButton"),
@@ -26,9 +29,11 @@ const ui = {
   orientationContinueButton: document.getElementById("orientationContinueButton"),
   modeButtons: [...document.querySelectorAll("[data-mode]")],
   goalPanel: document.getElementById("goalPanel"),
+  gameStatusLabel: document.getElementById("gameStatusLabel"),
   finalScore: document.getElementById("finalScore"),
   finalWater: document.getElementById("finalWater"),
   finalRefills: document.getElementById("finalRefills"),
+  finalDetails: document.getElementById("finalDetails"),
   restartButton: document.getElementById("restartButton"),
 };
 
@@ -74,6 +79,10 @@ function applyDebugQuery() {
   if (params.get("metrics") === "1") {
     CONFIG.debug.enabled = true;
     CONFIG.debug.showMetrics = true;
+  }
+  const timeLimit = Number(params.get("time"));
+  if (Number.isFinite(timeLimit) && timeLimit > 0) {
+    CONFIG.timer.timeLimitSeconds = timeLimit;
   }
 }
 
