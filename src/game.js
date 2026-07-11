@@ -9,6 +9,7 @@ const STATE = {
   countdown: "countdown",
   playing: "playing",
   arrived: "arrived",
+  gameOver: "gameOver",
 };
 
 export class Game {
@@ -63,6 +64,7 @@ export class Game {
     this.ui.modePanel.hidden = false;
     this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
+    this.ui.gameOverPanel.hidden = true;
     this.ui.refillButton.hidden = true;
     this.resetStateValues(this.selectedMode);
     this.updateModeButtons();
@@ -82,6 +84,7 @@ export class Game {
     this.input.setEnabled(false);
     this.ui.modePanel.hidden = true;
     this.ui.goalPanel.hidden = true;
+    this.ui.gameOverPanel.hidden = true;
     this.ui.refillButton.hidden = true;
     this.countdownIndex = 0;
     this.countdownTimer = 0;
@@ -97,6 +100,7 @@ export class Game {
     this.ui.modePanel.hidden = true;
     this.ui.countdown.hidden = true;
     this.ui.goalPanel.hidden = true;
+    this.ui.gameOverPanel.hidden = true;
     this.updateHud();
   }
 
@@ -162,6 +166,7 @@ export class Game {
       this.handleWatering(dt);
       this.updateFlowerVisibilityMetrics(dt);
       this.checkGoal();
+      this.checkGameOver();
     }
 
     this.updateDrops(dt);
@@ -217,6 +222,11 @@ export class Game {
   handleEmptyWater() {
     if (this.refillMode === "auto" && this.autoRefillArmed && this.score >= CONFIG.wateringCan.refillCost) {
       this.tryRefill("auto");
+      return;
+    }
+
+    if (this.cannotRefill()) {
+      this.triggerGameOver();
       return;
     }
 
@@ -343,6 +353,36 @@ export class Game {
     return true;
   }
 
+  cannotRefill() {
+    return this.currentWater <= 0 && this.score < CONFIG.wateringCan.refillCost;
+  }
+
+  checkGameOver() {
+    if (this.state !== STATE.playing) return;
+    if (!this.cannotRefill()) return;
+    if (this.waterDrops.length > 0) return;
+    this.triggerGameOver();
+  }
+
+  triggerGameOver() {
+    if (this.state === STATE.gameOver || this.state === STATE.arrived) return;
+    this.state = STATE.gameOver;
+    this.input.setEnabled(false);
+    this.input.clear();
+    this.waterDrops = [];
+    this.ui.gameOverScore.textContent = `スコア ${this.score}pt`;
+    this.ui.gameOverWater.textContent = `残り水 ${this.currentWater} / ${CONFIG.wateringCan.maxWater}`;
+    this.ui.gameOverRefills.textContent = `補充 ${this.refillCount}回`;
+    this.ui.refillButton.hidden = true;
+    this.ui.modePanel.hidden = true;
+    this.ui.goalPanel.hidden = true;
+    this.ui.countdown.hidden = true;
+    this.ui.gameOverPanel.hidden = false;
+    this.showToast("お水もポイントも足りません");
+    this.playFeedbackSound("fail");
+    this.updateHud();
+  }
+
   denyRefill(message) {
     this.showToast(message);
     this.bumpWaterGauge();
@@ -467,6 +507,7 @@ export class Game {
       this.ui.finalWater.textContent = `残り水 ${this.currentWater} / ${CONFIG.wateringCan.maxWater}`;
       this.ui.finalRefills.textContent = `補充 ${this.refillCount}回`;
       this.ui.refillButton.hidden = true;
+      this.ui.gameOverPanel.hidden = true;
       this.ui.goalPanel.hidden = false;
     }
   }

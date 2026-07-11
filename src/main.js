@@ -30,12 +30,18 @@ const ui = {
   finalWater: document.getElementById("finalWater"),
   finalRefills: document.getElementById("finalRefills"),
   restartButton: document.getElementById("restartButton"),
+  gameOverPanel: document.getElementById("gameOverPanel"),
+  gameOverScore: document.getElementById("gameOverScore"),
+  gameOverWater: document.getElementById("gameOverWater"),
+  gameOverRefills: document.getElementById("gameOverRefills"),
+  gameOverRestartButton: document.getElementById("gameOverRestartButton"),
 };
 
 input.bind(canvas);
 
 const game = new Game(canvas, input, ui);
 ui.restartButton.addEventListener("click", () => game.showModeSelect());
+ui.gameOverRestartButton.addEventListener("click", () => game.showModeSelect());
 ui.refillButton.addEventListener("click", () => game.tryRefill("normal"));
 ui.journeyButton.addEventListener("click", () => game.beginCountdown());
 ui.orientationContinueButton.addEventListener("click", () => enableBrowserPreviewMode());
