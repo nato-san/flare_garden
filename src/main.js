@@ -2,6 +2,7 @@ import { Game } from "./game.js";
 import { InputController } from "./input.js";
 
 installCanvasFallbacks();
+restoreBrowserPreviewMode();
 
 const canvas = document.getElementById("gameCanvas");
 const input = new InputController();
@@ -20,6 +21,7 @@ const ui = {
   countdown: document.getElementById("countdown"),
   modePanel: document.getElementById("modePanel"),
   journeyButton: document.getElementById("journeyButton"),
+  orientationContinueButton: document.getElementById("orientationContinueButton"),
   modeButtons: [...document.querySelectorAll("[data-mode]")],
   goalPanel: document.getElementById("goalPanel"),
   finalScore: document.getElementById("finalScore"),
@@ -34,11 +36,31 @@ const game = new Game(canvas, input, ui);
 ui.restartButton.addEventListener("click", () => game.showModeSelect());
 ui.refillButton.addEventListener("click", () => game.tryRefill("normal"));
 ui.journeyButton.addEventListener("click", () => game.beginCountdown());
+ui.orientationContinueButton.addEventListener("click", () => enableBrowserPreviewMode());
 ui.modeButtons.forEach((button) => {
   button.addEventListener("click", () => game.selectMode(button.dataset.mode));
 });
 
 game.start();
+
+function enableBrowserPreviewMode() {
+  document.body.classList.add("is-browser-preview");
+  try {
+    window.sessionStorage.setItem("flareGardenBrowserPreview", "1");
+  } catch {
+    // The button still works when storage is unavailable.
+  }
+}
+
+function restoreBrowserPreviewMode() {
+  try {
+    if (window.sessionStorage.getItem("flareGardenBrowserPreview") === "1") {
+      document.body.classList.add("is-browser-preview");
+    }
+  } catch {
+    // Storage can be blocked in some browser contexts.
+  }
+}
 
 function installCanvasFallbacks() {
   const prototype = window.CanvasRenderingContext2D?.prototype;

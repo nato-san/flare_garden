@@ -431,6 +431,23 @@ canvas {
   font-weight: 700;
 }
 
+.orientation-continue-button {
+  min-height: 48px;
+  margin-top: 4px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  color: white;
+  background: #62bfcf;
+  box-shadow: 0 5px 0 #459aaa;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.orientation-continue-button:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #459aaa;
+}
+
 .mode-panel {
   inset: 0;
   z-index: 9;
@@ -570,6 +587,10 @@ canvas {
   .orientation-panel {
     display: grid;
   }
+
+  body.is-browser-preview .orientation-panel {
+    display: none;
+  }
 }
 
 @media (max-width: 740px) {
@@ -677,6 +698,86 @@ canvas {
     margin-top: clamp(6px, 1.8vh, 10px);
     padding: 8px 18px;
     font-size: clamp(17px, 4.5vh, 22px);
+    box-shadow: 0 5px 0 #c95c4a;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 520px) {
+  body.is-browser-preview .mode-panel {
+    padding:
+      calc(8px + var(--safe-top))
+      calc(10px + var(--safe-right))
+      calc(8px + var(--safe-bottom))
+      calc(10px + var(--safe-left));
+  }
+
+  body.is-browser-preview .mode-card {
+    width: min(430px, 100%);
+    max-height: calc(100dvh - 16px - var(--safe-top) - var(--safe-bottom));
+    padding: 12px;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  }
+
+  body.is-browser-preview .mode-card h1 {
+    margin-bottom: 2px;
+    font-size: clamp(24px, 7vw, 32px);
+    line-height: 1.05;
+  }
+
+  body.is-browser-preview .mode-lead {
+    margin-bottom: 8px;
+    font-size: clamp(12px, 3.2vw, 15px);
+    line-height: 1.25;
+  }
+
+  body.is-browser-preview .mode-options {
+    gap: 8px;
+    min-height: 0;
+  }
+
+  body.is-browser-preview .mode-options article {
+    gap: 5px;
+    padding: 9px;
+  }
+
+  body.is-browser-preview .mode-options h2 {
+    font-size: clamp(20px, 6vw, 28px);
+    line-height: 1.05;
+  }
+
+  body.is-browser-preview .mode-options p {
+    min-height: 0;
+    font-size: clamp(11px, 3vw, 14px);
+    line-height: 1.25;
+  }
+
+  body.is-browser-preview .mode-button {
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: clamp(15px, 4vw, 18px);
+    box-shadow: 0 4px 0 #c95c4a;
+  }
+
+  body.is-browser-preview .mode-button.is-selected {
+    box-shadow: 0 4px 0 #459aaa;
+  }
+
+  body.is-browser-preview .mode-howto {
+    gap: 5px;
+    margin-top: 8px;
+    font-size: 11px;
+  }
+
+  body.is-browser-preview .mode-howto span {
+    padding: 3px 7px;
+  }
+
+  body.is-browser-preview .journey-button {
+    min-height: 42px;
+    margin-top: 8px;
+    padding: 8px 16px;
+    font-size: 18px;
     box-shadow: 0 5px 0 #c95c4a;
   }
 }
