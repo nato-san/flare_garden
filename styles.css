@@ -482,6 +482,10 @@ canvas {
   display: none;
 }
 
+.orientation-panel[hidden] {
+  display: none !important;
+}
+
 .orientation-card {
   display: grid;
   gap: 12px;

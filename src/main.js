@@ -42,7 +42,7 @@ input.bind(canvas, () => game.cameraX, () => ({ x: game.player.screenX, y: game.
 ui.restartButton.addEventListener("click", () => game.showModeSelect());
 ui.refillButton.addEventListener("click", () => game.tryRefill("normal"));
 ui.journeyButton.addEventListener("click", () => game.beginCountdown());
-ui.orientationContinueButton.addEventListener("click", () => enableBrowserPreviewMode());
+bindBrowserPreviewButton(ui.orientationContinueButton);
 ui.modeButtons.forEach((button) => {
   button.addEventListener("click", () => game.selectMode(button.dataset.mode));
 });
@@ -51,6 +51,7 @@ game.start();
 
 function enableBrowserPreviewMode() {
   document.body.classList.add("is-browser-preview");
+  document.getElementById("orientationPanel")?.setAttribute("hidden", "");
   try {
     window.sessionStorage.setItem("flareGardenBrowserPreview", "1");
   } catch {
@@ -62,10 +63,24 @@ function restoreBrowserPreviewMode() {
   try {
     if (window.sessionStorage.getItem("flareGardenBrowserPreview") === "1") {
       document.body.classList.add("is-browser-preview");
+      document.getElementById("orientationPanel")?.setAttribute("hidden", "");
     }
   } catch {
     // Storage can be blocked in some browser contexts.
   }
+}
+
+function bindBrowserPreviewButton(button) {
+  const continueInBrowser = (event) => {
+    event.preventDefault();
+    enableBrowserPreviewMode();
+  };
+  button.addEventListener("click", continueInBrowser);
+  button.addEventListener("pointerup", continueInBrowser);
+  button.addEventListener("touchend", continueInBrowser, { passive: false });
+  button.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") continueInBrowser(event);
+  });
 }
 
 function applyDebugQuery() {
