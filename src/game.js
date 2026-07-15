@@ -790,7 +790,7 @@ export class Game {
     this.frogs.forEach((frog) => frog.draw(ctx, this.cameraX, this.assets));
     this.birds.forEach((bird) => bird.draw(ctx, this.cameraX, this.assets));
     this.drawWaterDrops(ctx);
-    this.player.draw(ctx, this.assets);
+    this.player.draw(ctx, this.assets, this.input.water || this.waterCooldown > 0);
     this.drawParticles(ctx);
     this.drawFloaters(ctx);
     if (CONFIG.debug.showHitboxes) this.drawWaterDebug(ctx);

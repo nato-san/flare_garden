@@ -163,8 +163,13 @@ http://127.0.0.1:8091/?debug=1&metrics=1
 
 ```js
 characters: {
-  player: "./assets/images/player-bear.png",
+  playerFlyingRight: "./assets/images/characters/bear-flying-right.png",
+  playerFlyingLeft: "./assets/images/characters/bear-flying-left.png",
+  playerWateringRight: "./assets/images/characters/bear-watering-right.png",
+  playerWateringLeft: "./assets/images/characters/bear-watering-left.png",
 }
 ```
+
+キャラクターは飛行中と水やり中、左右の向きごとに差し替えできます。従来どおり `characters.player` だけを指定した場合は、左向き時に反転して表示します。
 
 カエルと鳥は仮描画で実装済みです。`enemies.frog` と `enemies.bird` に画像パスを入れると差し替えられます。

@@ -77,8 +77,13 @@ export class Player {
     };
   }
 
-  draw(ctx, assets) {
-    const image = assets.get("characters.player");
+  draw(ctx, assets, isWatering = false) {
+    const side = this.facing === "left" ? "Left" : "Right";
+    const state = isWatering ? "Watering" : "Flying";
+    const directionalImage = assets.get(`characters.player${state}${side}`);
+    const fallbackImage = assets.get("characters.player");
+    const image = directionalImage || fallbackImage;
+    const shouldFlipFallback = !directionalImage && fallbackImage && this.facing === "left";
     const bob = Math.sin(this.floatTime * 4.2) * 10;
     const x = this.screenX;
     const y = this.y + bob;
@@ -89,7 +94,7 @@ export class Player {
       (asset) => {
         ctx.save();
         ctx.translate(x, y);
-        if (this.facing === "left") ctx.scale(-1, 1);
+        if (shouldFlipFallback) ctx.scale(-1, 1);
         ctx.drawImage(asset, -this.width / 2, -this.height / 2, this.width, this.height);
         ctx.restore();
       },
