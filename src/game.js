@@ -294,7 +294,7 @@ export class Game {
       if (!drop.used) {
         for (const flower of this.flowers) {
           if (flower.isBloomed) continue;
-          if (pointInRect(drop.x, drop.y, flower.getHitbox(this.cameraX))) {
+          if (pointInRect(drop.x, drop.y, expandRect(flower.getHitbox(this.cameraX), drop.width * 0.45, drop.height * 0.45))) {
             drop.used = true;
             const result = flower.water();
             this.spawnHitParticles(flower.worldX - this.cameraX, flower.y - flower.height * 0.72);
@@ -1145,6 +1145,15 @@ export class Game {
 
 function pointInRect(x, y, rect) {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+function expandRect(rect, xPadding, yPadding) {
+  return {
+    x: rect.x - xPadding,
+    y: rect.y - yPadding,
+    width: rect.width + xPadding * 2,
+    height: rect.height + yPadding * 2,
+  };
 }
 
 function clamp(value, min, max) {
